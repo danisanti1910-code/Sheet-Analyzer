@@ -1,64 +1,145 @@
 import { Link, useLocation } from "wouter";
 import { useSheet } from "@/lib/sheet-context";
-import { FileSpreadsheet, BarChart3, Info } from "lucide-react";
+import { 
+  FileSpreadsheet, 
+  BarChart3, 
+  Info, 
+  LayoutDashboard, 
+  Home, 
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  Menu
+} from "lucide-react";
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { sheetData } = useSheet();
+  const [collapsed, setCollapsed] = useState(false);
 
   const isActive = (path: string) => location === path;
 
+  const navItems = [
+    { label: "Inicio", href: "/", icon: Home },
+    { label: "Analizar", href: "/analyze", icon: BarChart3, disabled: !sheetData },
+    { label: "Dashboards", href: "/dashboards", icon: LayoutDashboard, disabled: !sheetData },
+    { label: "Acerca de", href: "/about", icon: Info },
+  ];
+
   return (
-    <div className="min-h-screen bg-background font-sans flex flex-col">
-      <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 max-w-screen-2xl items-center px-4 md:px-8">
-          <Link href="/" className="mr-6 flex items-center space-x-2">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+    <div className="flex h-screen bg-background overflow-hidden font-sans">
+      {/* Sidebar Navigation */}
+      <aside 
+        className={`relative z-20 flex flex-col border-r bg-sidebar transition-all duration-300 ease-in-out ${collapsed ? 'w-16' : 'w-64'}`}
+      >
+        <div className="flex h-14 items-center px-4 border-b">
+          <Link href="/" className="flex items-center space-x-3 overflow-hidden">
+            <div className="flex-shrink-0 h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <FileSpreadsheet className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="hidden font-bold sm:inline-block text-lg tracking-tight">
-              Sheet Analyzer
-            </span>
-          </Link>
-          <nav className="flex items-center space-x-6 text-sm font-medium">
-            <Link 
-              href="/"
-              className={`transition-colors hover:text-foreground/80 ${isActive('/') ? 'text-foreground' : 'text-foreground/60'}`}
-            >
-              Cargar
-            </Link>
-            <Link 
-              href="/analyze"
-              className={`transition-colors hover:text-foreground/80 ${isActive('/analyze') ? 'text-foreground' : 'text-foreground/60'} ${!sheetData ? 'opacity-50 pointer-events-none' : ''}`}
-            >
-              Analizar
-            </Link>
-            <Link 
-              href="/about"
-              className={`transition-colors hover:text-foreground/80 ${isActive('/about') ? 'text-foreground' : 'text-foreground/60'}`}
-            >
-              Acerca de
-            </Link>
-          </nav>
-          <div className="ml-auto flex items-center space-x-4">
-            {sheetData && (
-              <span className="text-xs text-muted-foreground hidden md:inline-block border px-2 py-1 rounded-full">
-                {sheetData.fileName} • {sheetData.rowCount.toLocaleString()} filas
+            {!collapsed && (
+              <span className="font-bold text-lg tracking-tight whitespace-nowrap animate-in fade-in slide-in-from-left-2">
+                Sheet Analyzer
               </span>
             )}
+          </Link>
+        </div>
+
+        <nav className="flex-1 space-y-1 p-2 overflow-y-auto">
+          <TooltipProvider delayDuration={0}>
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href);
+              
+              const content = (
+                <Link
+                  href={item.disabled ? "#" : item.href}
+                  className={`
+                    flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200
+                    ${active ? 'bg-primary text-primary-foreground shadow-sm' : 'text-sidebar-foreground hover:bg-sidebar-accent'}
+                    ${item.disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
+                  `}
+                >
+                  <Icon className={`h-5 w-5 flex-shrink-0 ${active ? '' : 'text-sidebar-foreground/70'}`} />
+                  {!collapsed && (
+                    <span className="font-medium animate-in fade-in slide-in-from-left-1">{item.label}</span>
+                  )}
+                </Link>
+              );
+
+              if (collapsed) {
+                return (
+                  <Tooltip key={item.href}>
+                    <TooltipTrigger asChild>
+                      {content}
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      {item.label}
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              }
+
+              return <React.Fragment key={item.href}>{content}</React.Fragment>;
+            })}
+          </TooltipProvider>
+        </nav>
+
+        <div className="p-2 border-t">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="w-full h-10 flex items-center justify-center rounded-lg hover:bg-sidebar-accent"
+            onClick={() => setCollapsed(!collapsed)}
+          >
+            {collapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+          </Button>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Mobile Header (Hidden on Desktop) */}
+        <header className="md:hidden flex h-14 items-center justify-between px-4 border-b bg-background/95 backdrop-blur">
+          <Link href="/" className="flex items-center space-x-2">
+            <FileSpreadsheet className="h-6 w-6 text-primary" />
+            <span className="font-bold">Sheet Analyzer</span>
+          </Link>
+          <Button variant="ghost" size="icon">
+            <Menu className="h-6 w-6" />
+          </Button>
+        </header>
+
+        <main className="flex-1 overflow-y-auto overflow-x-hidden relative">
+          {children}
+        </main>
+
+        <footer className="border-t py-4 bg-muted/30 px-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <p className="text-xs text-muted-foreground">
+              Sheet Analyzer MVP • Privacidad local garantizada.
+            </p>
+            {sheetData && (
+              <div className="flex items-center space-x-3">
+                <span className="text-[10px] font-mono text-muted-foreground px-2 py-0.5 rounded-full bg-muted border">
+                  {sheetData.fileName}
+                </span>
+                <span className="text-[10px] font-mono text-muted-foreground px-2 py-0.5 rounded-full bg-muted border">
+                  {sheetData.rowCount.toLocaleString()} filas
+                </span>
+              </div>
+            )}
           </div>
-        </div>
-      </header>
-      <main className="flex-1">
-        {children}
-      </main>
-      <footer className="border-t py-6 md:py-0">
-        <div className="container flex flex-col items-center justify-between gap-4 md:h-24 md:flex-row px-4 md:px-8">
-          <p className="text-center text-sm leading-loose text-muted-foreground md:text-left">
-            Built with ❤️ using Replit. Privacidad garantizada: los archivos se procesan en tu navegador.
-          </p>
-        </div>
-      </footer>
+        </footer>
+      </div>
     </div>
   );
 }
