@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { useSheet } from '@/lib/sheet-context';
 import { parseSheet } from '@/lib/sheet-utils';
 import { useLocation } from 'wouter';
-import { Upload, FileType, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { Upload, FileType, AlertCircle, CheckCircle2, Loader2, Link as LinkIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -80,8 +80,6 @@ export function FileUpload() {
     setIsLoading(true);
 
     try {
-      // Basic heuristic for Google Sheets
-      // https://docs.google.com/spreadsheets/d/ID/edit -> https://docs.google.com/spreadsheets/d/ID/export?format=csv
       let fetchUrl = importUrl;
       if (importUrl.includes('docs.google.com/spreadsheets')) {
         const idMatch = importUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
@@ -112,7 +110,6 @@ export function FileUpload() {
     setIsProcessing(true);
     setIsLoading(true);
     try {
-        // Create a simple CSV string
         const csvContent = `Fecha,Producto,Categoría,Ventas,Cliente,Satisfacción
 2023-01-01,Laptop Pro,Electrónica,1200,Empresa A,4.5
 2023-01-02,Mouse Inalámbrico,Accesorios,25,Juan Perez,5.0
@@ -128,7 +125,6 @@ export function FileUpload() {
         const blob = new Blob([csvContent], { type: 'text/csv' });
         const file = new File([blob], "demo_ventas.csv", { type: "text/csv" });
         await handleFile(file);
-
     } catch (e) {
         console.error(e);
         setIsProcessing(false);
@@ -137,7 +133,7 @@ export function FileUpload() {
   }
 
   return (
-    <div className="w-full max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="w-full max-w-2xl mx-auto space-y-8">
       <Card className={`
         relative border-2 border-dashed rounded-xl p-12 transition-all duration-200 ease-in-out
         ${isDragging ? 'border-primary bg-primary/5 scale-[1.02]' : 'border-border hover:border-primary/50 hover:bg-muted/50'}
@@ -155,10 +151,10 @@ export function FileUpload() {
           
           <div className="space-y-2">
             <h3 className="text-2xl font-semibold tracking-tight">
-              {isProcessing ? 'Procesando archivo...' : 'Sube tu hoja de cálculo'}
+              {isProcessing ? 'Procesando archivo...' : 'Sube tu archivo'}
             </h3>
             <p className="text-muted-foreground max-w-sm mx-auto">
-              Arrastra y suelta tu archivo Excel (.xlsx, .xls) o CSV aquí, o haz clic para explorar.
+              Arrastra y suelta tu Excel o CSV aquí.
             </p>
           </div>
 
@@ -176,51 +172,46 @@ export function FileUpload() {
               </label>
             </Button>
           </div>
-          
-          <div className="flex items-center gap-2 mt-4 text-sm text-muted-foreground">
-             <AlertCircle className="w-4 h-4" />
-             <span>Máximo 50MB. Procesamiento local seguro.</span>
-          </div>
         </div>
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="p-6 space-y-4">
-            <div className="flex items-center justify-between">
-                <Label htmlFor="header-mode" className="font-medium">Opciones de Lectura</Label>
-                <FileType className="w-4 h-4 text-muted-foreground" />
+        <Card className="p-6 space-y-4 flex flex-col justify-between">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                  <Label htmlFor="header-mode" className="font-medium">Opciones</Label>
+                  <FileType className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <div className="flex items-center space-x-2">
+                  <Switch id="header-mode" checked={headerMode} onCheckedChange={setHeaderMode} />
+                  <Label htmlFor="header-mode" className="text-sm text-muted-foreground">
+                      Encabezado en primera fila
+                  </Label>
+              </div>
             </div>
-            <div className="flex items-center space-x-2">
-                <Switch id="header-mode" checked={headerMode} onCheckedChange={setHeaderMode} />
-                <Label htmlFor="header-mode" className="text-sm text-muted-foreground">
-                    Tratar primera fila como encabezado
-                </Label>
-            </div>
-            <div className="pt-2">
-                <Button variant="outline" size="sm" className="w-full" onClick={loadDemoData}>
-                    Probar con dataset demo
-                </Button>
-            </div>
+            <Button variant="outline" size="sm" className="w-full" onClick={loadDemoData}>
+                Probar con dataset demo
+            </Button>
         </Card>
 
         <Card className="p-6 space-y-4">
             <div className="flex items-center justify-between">
                 <Label className="font-medium">Importar URL</Label>
-                <div className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">Beta</div>
+                <LinkIcon className="w-4 h-4 text-muted-foreground" />
             </div>
-            <div className="flex gap-2">
-                <Input 
-                    placeholder="Enlace público de Google Sheets..." 
-                    value={importUrl}
-                    onChange={(e) => setImportUrl(e.target.value)}
-                    className="flex-1"
-                />
-                <Button size="icon" variant="secondary" onClick={handleUrlImport} disabled={!importUrl || isProcessing}>
-                    <CheckCircle2 className="w-4 h-4" />
-                </Button>
+            <div className="space-y-4">
+              <Input 
+                  placeholder="Enlace público de Google Sheets..." 
+                  value={importUrl}
+                  onChange={(e) => setImportUrl(e.target.value)}
+                  className="w-full"
+              />
+              <Button className="w-full gap-2" onClick={handleUrlImport} disabled={!importUrl || isProcessing}>
+                  <CheckCircle2 className="w-4 h-4" /> Importar datos
+              </Button>
             </div>
-            <p className="text-xs text-muted-foreground">
-                Soporta enlaces públicos de Google Sheets/Drive.
+            <p className="text-[10px] text-muted-foreground text-center">
+                El archivo debe ser público o estar publicado en la web.
             </p>
         </Card>
       </div>

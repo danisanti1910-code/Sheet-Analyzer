@@ -7,6 +7,7 @@ export interface SavedView {
   xAxis: string;
   yAxis: string[];
   selectedColumns: string[];
+  colorScheme?: string[];
   timestamp: number;
 }
 
