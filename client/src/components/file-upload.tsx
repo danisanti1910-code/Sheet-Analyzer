@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { useSheet } from '@/lib/sheet-context';
 import { parseSheet } from '@/lib/sheet-utils';
 import { useLocation } from 'wouter';
-import { Upload, FileType, AlertCircle, CheckCircle2, Loader2, Link as LinkIcon } from 'lucide-react';
+import { Upload, FileType, CheckCircle2, Loader2, Link as LinkIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 
 export function FileUpload() {
-  const { setSheetData, setIsLoading } = useSheet();
+  const { activeProject, updateProject, activeProjectId, createProject } = useSheet();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [isDragging, setIsDragging] = useState(false);
@@ -21,64 +21,30 @@ export function FileUpload() {
 
   const handleFile = async (file: File) => {
     setIsProcessing(true);
-    setIsLoading(true);
     try {
-      if (file.size > 50 * 1024 * 1024) {
-        throw new Error('El archivo excede el límite de 50MB');
-      }
       const data = await parseSheet(file, headerMode);
-      setSheetData(data);
-      toast({
-        title: "Archivo procesado con éxito",
-        description: `Se cargaron ${data.rowCount} filas y ${data.columns.length} columnas.`,
-        variant: "default",
-      });
+      
+      let targetId = activeProjectId;
+      if (!targetId) {
+        // Create a default project if none exists
+        const newId = Math.random().toString(36).substring(7);
+        createProject(`Proyecto ${file.name}`);
+        targetId = newId; 
+      }
+
+      updateProject(activeProjectId!, { sheetData: data });
+      toast({ title: "Archivo procesado" });
       setLocation('/analyze');
     } catch (error: any) {
-      console.error(error);
-      toast({
-        title: "Error al procesar",
-        description: error.message || "No se pudo leer el archivo.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", variant: "destructive" });
     } finally {
       setIsProcessing(false);
-      setIsLoading(false);
-    }
-  };
-
-  const onDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const files = Array.from(e.dataTransfer.files);
-    if (files.length > 0) {
-      handleFile(files[0]);
-    }
-  }, [headerMode]);
-
-  const onDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
-
-  const onDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  }, []);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      handleFile(files[0]);
     }
   };
 
   const handleUrlImport = async () => {
     if (!importUrl) return;
-    
     setIsProcessing(true);
-    setIsLoading(true);
-
     try {
       let fetchUrl = importUrl;
       if (importUrl.includes('docs.google.com/spreadsheets')) {
@@ -89,130 +55,51 @@ export function FileUpload() {
       }
 
       const response = await fetch(fetchUrl);
-      if (!response.ok) throw new Error('No se pudo descargar el archivo. Asegúrate de que sea público.');
-      
+      if (!response.ok) throw new Error('Fetch failed');
       const blob = await response.blob();
-      const file = new File([blob], "imported_sheet.csv", { type: "text/csv" });
-      await handleFile(file);
+      const file = new File([blob], "imported.csv", { type: "text/csv" });
       
+      const data = await parseSheet(file, headerMode);
+      updateProject(activeProjectId!, { sheetData: data, sourceUrl: importUrl });
+      toast({ title: "Importación exitosa" });
+      setLocation('/analyze');
     } catch (error: any) {
-        toast({
-            title: "Error de importación",
-            description: "No se pudo importar desde la URL. Verifica que el enlace sea público (File -> Share -> Publish to web o Anyone with link).",
-            variant: "destructive"
-        });
-        setIsProcessing(false);
-        setIsLoading(false);
+      toast({ title: "Error de URL", variant: "destructive" });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  const loadDemoData = async () => {
-    setIsProcessing(true);
-    setIsLoading(true);
-    try {
-        const csvContent = `Fecha,Producto,Categoría,Ventas,Cliente,Satisfacción
-2023-01-01,Laptop Pro,Electrónica,1200,Empresa A,4.5
-2023-01-02,Mouse Inalámbrico,Accesorios,25,Juan Perez,5.0
-2023-01-03,Monitor 4K,Electrónica,450,Maria Garcia,4.0
-2023-01-04,Teclado Mecánico,Accesorios,80,Pedro Lopez,3.5
-2023-01-05,Laptop Air,Electrónica,900,Empresa B,4.8
-2023-01-06,USB-C Hub,Accesorios,40,Ana Martinez,2.0
-2023-01-07,Webcam HD,Accesorios,60,Carlos Ruiz,4.2
-2023-01-08,Laptop Pro,Electrónica,1200,Empresa C,4.9
-2023-01-09,Silla Ergonómica,Muebles,300,Laura Diaz,3.8
-2023-01-10,Escritorio Elevable,Muebles,500,Empresa A,4.7`;
-
-        const blob = new Blob([csvContent], { type: 'text/csv' });
-        const file = new File([blob], "demo_ventas.csv", { type: "text/csv" });
-        await handleFile(file);
-    } catch (e) {
-        console.error(e);
-        setIsProcessing(false);
-        setIsLoading(false);
-    }
-  }
-
   return (
     <div className="w-full max-w-2xl mx-auto space-y-8">
-      <Card className={`
-        relative border-2 border-dashed rounded-xl p-12 transition-all duration-200 ease-in-out
-        ${isDragging ? 'border-primary bg-primary/5 scale-[1.02]' : 'border-border hover:border-primary/50 hover:bg-muted/50'}
-        ${isProcessing ? 'opacity-50 pointer-events-none' : ''}
-      `}>
-        <div 
-            className="flex flex-col items-center justify-center text-center space-y-4"
-            onDrop={onDrop}
-            onDragOver={onDragOver}
-            onDragLeave={onDragLeave}
-        >
-          <div className="p-4 rounded-full bg-primary/10 text-primary mb-2">
+      <Card 
+        className={`relative border-2 border-dashed rounded-xl p-12 transition-all ${isDragging ? 'border-primary bg-primary/5' : 'border-border'}`}
+        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={(e) => { e.preventDefault(); setIsDragging(false); handleFile(e.dataTransfer.files[0]); }}
+      >
+        <div className="flex flex-col items-center space-y-4">
+          <div className="p-4 rounded-full bg-primary/10 text-primary">
             {isProcessing ? <Loader2 className="w-10 h-10 animate-spin" /> : <Upload className="w-10 h-10" />}
           </div>
-          
-          <div className="space-y-2">
-            <h3 className="text-2xl font-semibold tracking-tight">
-              {isProcessing ? 'Procesando archivo...' : 'Sube tu archivo'}
-            </h3>
-            <p className="text-muted-foreground max-w-sm mx-auto">
-              Arrastra y suelta tu Excel o CSV aquí.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 pt-4">
-            <input
-              type="file"
-              id="file-upload"
-              className="hidden"
-              accept=".xlsx,.xls,.csv"
-              onChange={handleInputChange}
-            />
-            <Button asChild size="lg" className="rounded-full px-8">
-              <label htmlFor="file-upload" className="cursor-pointer">
-                Seleccionar Archivo
-              </label>
-            </Button>
-          </div>
+          <h3 className="text-xl font-semibold">Sube tus datos</h3>
+          <input type="file" id="file-upload" className="hidden" accept=".xlsx,.xls,.csv" onChange={(e) => e.target.files && handleFile(e.target.files[0])} />
+          <Button asChild><label htmlFor="file-upload" className="cursor-pointer">Seleccionar Archivo</label></Button>
         </div>
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="p-6 space-y-4 flex flex-col justify-between">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                  <Label htmlFor="header-mode" className="font-medium">Opciones</Label>
-                  <FileType className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <div className="flex items-center space-x-2">
-                  <Switch id="header-mode" checked={headerMode} onCheckedChange={setHeaderMode} />
-                  <Label htmlFor="header-mode" className="text-sm text-muted-foreground">
-                      Encabezado en primera fila
-                  </Label>
-              </div>
-            </div>
-            <Button variant="outline" size="sm" className="w-full" onClick={loadDemoData}>
-                Probar con dataset demo
-            </Button>
-        </Card>
-
         <Card className="p-6 space-y-4">
-            <div className="flex items-center justify-between">
-                <Label className="font-medium">Importar URL</Label>
-                <LinkIcon className="w-4 h-4 text-muted-foreground" />
-            </div>
-            <div className="space-y-4">
-              <Input 
-                  placeholder="Enlace público de Google Sheets..." 
-                  value={importUrl}
-                  onChange={(e) => setImportUrl(e.target.value)}
-                  className="w-full"
-              />
-              <Button className="w-full gap-2" onClick={handleUrlImport} disabled={!importUrl || isProcessing}>
-                  <CheckCircle2 className="w-4 h-4" /> Importar datos
-              </Button>
-            </div>
-            <p className="text-[10px] text-muted-foreground text-center">
-                El archivo debe ser público o estar publicado en la web.
-            </p>
+          <Label className="font-medium">Opciones</Label>
+          <div className="flex items-center space-x-2">
+            <Switch checked={headerMode} onCheckedChange={setHeaderMode} />
+            <span className="text-sm">Encabezado en primera fila</span>
+          </div>
+        </Card>
+        <Card className="p-6 space-y-4">
+          <Label className="font-medium">Google Sheets</Label>
+          <Input placeholder="URL pública..." value={importUrl} onChange={e => setImportUrl(e.target.value)} />
+          <Button className="w-full" onClick={handleUrlImport} disabled={!importUrl || isProcessing}>Importar datos</Button>
         </Card>
       </div>
     </div>

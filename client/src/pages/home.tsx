@@ -2,7 +2,6 @@ import { FileUpload } from "@/components/file-upload";
 import { Layout } from "@/components/layout";
 import { useSheet } from "@/lib/sheet-context";
 import { useLocation } from "wouter";
-import { useEffect } from "react";
 import generatedImage from '@assets/generated_images/abstract_data_visualization_waves_header_background.png';
 import { Shield, Zap, Database, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";

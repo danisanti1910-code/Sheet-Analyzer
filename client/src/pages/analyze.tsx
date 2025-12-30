@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useSheet } from '@/lib/sheet-context';
 import { Layout } from '@/components/layout';
 import { ColumnSidebar } from '@/components/column-sidebar';
@@ -7,75 +7,144 @@ import { InsightsPanel } from '@/components/insights-panel';
 import { DataTable } from '@/components/data-table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, RefreshCw, AlertTriangle, UserCheck, Trash2, Edit3 } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { Link } from 'wouter';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 
 export default function Analyze() {
-  const { sheetData } = useSheet();
+  const { activeProject, updateProject, refreshProjectData, activeProjectId } = useSheet();
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [tempName, setTempName] = useState(activeProject?.name || "");
 
-  if (!sheetData) {
+  const duplicates = useMemo(() => {
+    if (!activeProject?.sheetData) return [];
+    const rows = activeProject.sheetData.rows;
+    const seen = new Set();
+    const dups: number[] = [];
+    rows.forEach((row, idx) => {
+      const str = JSON.stringify(row);
+      if (seen.has(str)) dups.push(idx);
+      seen.add(str);
+    });
+    return dups;
+  }, [activeProject?.sheetData]);
+
+  const [ignoredDuplicates, setIgnoredDuplicates] = useState<Set<number>>(new Set());
+
+  if (!activeProject || !activeProject.sheetData) {
     return (
       <Layout>
         <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
           <AlertCircle className="w-16 h-16 text-muted-foreground opacity-50" />
-          <h2 className="text-xl font-semibold">No hay datos cargados</h2>
-          <p className="text-muted-foreground">Sube un archivo para comenzar el análisis.</p>
-          <Button asChild>
-            <Link href="/">Ir al Inicio</Link>
-          </Button>
+          <h2 className="text-xl font-semibold">Carga datos o selecciona un proyecto</h2>
+          <Button asChild><Link href="/">Ir al Inicio</Link></Button>
         </div>
       </Layout>
     );
   }
 
+  const handleUpdateName = () => {
+    updateProject(activeProjectId!, { name: tempName });
+    setIsEditingName(false);
+  };
+
+  const handleRemoveDuplicate = (index: number) => {
+    const newRows = [...activeProject.sheetData!.rows];
+    newRows.splice(index, 1);
+    updateProject(activeProjectId!, { 
+        sheetData: { ...activeProject.sheetData!, rows: newRows, rowCount: newRows.length } 
+    });
+  };
+
   return (
     <Layout>
       <div className="h-[calc(100vh-3.5rem)] flex flex-col">
-        {/* Mobile View Warning/Optimization could go here, for now relying on responsive flex */}
-        
-        <ResizablePanelGroup direction="horizontal" className="flex-1">
-          <ResizablePanel defaultSize={20} minSize={15} maxSize={30} className="hidden md:block bg-background">
-            <ColumnSidebar 
-              data={sheetData} 
-              selectedColumns={selectedColumns} 
-              onSelectionChange={setSelectedColumns} 
-            />
-          </ResizablePanel>
+        <div className="bg-card border-b px-6 py-3 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-4">
+            {isEditingName ? (
+              <div className="flex items-center gap-2">
+                <Input value={tempName} onChange={e => setTempName(e.target.value)} className="h-8 w-48" />
+                <Button size="sm" onClick={handleUpdateName}>OK</Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <h1 className="font-bold text-lg">{activeProject.name}</h1>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setTempName(activeProject.name); setIsEditingName(true); }}>
+                  <Edit3 className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
+            
+            {activeProject.sourceUrl && (
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => refreshProjectData(activeProjectId!)}>
+                <RefreshCw className="h-3 w-3" /> Actualizar archivo
+              </Button>
+            )}
+          </div>
           
-          <ResizableHandle className="hidden md:flex" />
-          
-          <ResizablePanel defaultSize={80}>
-            <div className="h-full flex flex-col p-4 md:p-6 overflow-y-auto bg-slate-50 dark:bg-slate-950/50">
-                <Tabs defaultValue="visualize" className="flex-1 flex flex-col space-y-4">
-                  <div className="flex items-center justify-between">
-                    <TabsList>
-                      <TabsTrigger value="visualize">Tablero</TabsTrigger>
-                      <TabsTrigger value="data">Datos</TabsTrigger>
-                    </TabsList>
-                    
-                    <div className="text-xs text-muted-foreground hidden lg:block">
-                        {selectedColumns.length === 0 
-                            ? "Selecciona columnas de la barra lateral" 
-                            : `${selectedColumns.length} columnas seleccionadas`}
-                    </div>
-                  </div>
+          {duplicates.length > ignoredDuplicates.size && (
+            <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 dark:bg-amber-950/30 text-amber-600 rounded-full border border-amber-200">
+              <AlertTriangle className="h-4 w-4" />
+              <span className="text-xs font-medium">{duplicates.length - ignoredDuplicates.size} filas duplicadas detectadas</span>
+            </div>
+          )}
+        </div>
 
-                  <TabsContent value="visualize" className="flex-1 space-y-4 animate-in fade-in-50">
-                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-full">
-                        <div className="lg:col-span-2 min-h-[400px]">
-                            <ChartBuilder data={sheetData} selectedColumns={selectedColumns} />
+        <ResizablePanelGroup direction="horizontal" className="flex-1">
+          <ResizablePanel defaultSize={20} minSize={15} className="hidden md:block">
+            <ColumnSidebar data={activeProject.sheetData} selectedColumns={selectedColumns} onSelectionChange={setSelectedColumns} />
+          </ResizablePanel>
+          <ResizableHandle />
+          <ResizablePanel defaultSize={80}>
+            <div className="h-full flex flex-col p-6 overflow-y-auto bg-slate-50 dark:bg-slate-950/30">
+                <Tabs defaultValue="visualize" className="space-y-4">
+                  <TabsList>
+                    <TabsTrigger value="visualize">Tablero</TabsTrigger>
+                    <TabsTrigger value="data">Datos</TabsTrigger>
+                    <TabsTrigger value="duplicates">Duplicados ({duplicates.length})</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="visualize" className="space-y-4">
+                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-2 h-[500px]">
+                            <ChartBuilder data={activeProject.sheetData} selectedColumns={selectedColumns} />
                         </div>
-                        <div className="lg:col-span-1 space-y-4">
-                             <h3 className="text-lg font-medium">Insights</h3>
-                             <InsightsPanel sheetData={sheetData} selectedColumns={selectedColumns} />
-                        </div>
+                        <InsightsPanel sheetData={activeProject.sheetData} selectedColumns={selectedColumns} />
                      </div>
                   </TabsContent>
 
-                  <TabsContent value="data" className="flex-1 border rounded-lg bg-background p-2 shadow-sm animate-in fade-in-50">
-                    <DataTable data={sheetData} selectedColumns={selectedColumns} />
+                  <TabsContent value="data">
+                    <DataTable data={activeProject.sheetData} selectedColumns={selectedColumns} />
+                  </TabsContent>
+
+                  <TabsContent value="duplicates">
+                    <Card>
+                      <CardHeader><CardTitle>Gestión de Duplicados</CardTitle></CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {duplicates.map((idx) => (
+                            <div key={idx} className={`p-4 border rounded-lg flex items-center justify-between ${ignoredDuplicates.has(idx) ? 'opacity-50' : ''}`}>
+                              <div className="text-sm truncate max-w-md">
+                                <span className="font-mono text-xs mr-2 text-muted-foreground">Fila {idx + 1}</span>
+                                {JSON.stringify(activeProject.sheetData!.rows[idx]).substring(0, 100)}...
+                              </div>
+                              <div className="flex gap-2">
+                                <Button size="sm" variant="outline" className="gap-1" onClick={() => setIgnoredDuplicates(prev => new Set([...prev, idx]))}>
+                                  <UserCheck className="h-3 w-3" /> No es duplicado
+                                </Button>
+                                <Button size="sm" variant="destructive" className="gap-1" onClick={() => handleRemoveDuplicate(idx)}>
+                                  <Trash2 className="h-3 w-3" /> Eliminar
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                          {duplicates.length === 0 && <p className="text-center py-10 text-muted-foreground">No se detectaron duplicados.</p>}
+                        </div>
+                      </CardContent>
+                    </Card>
                   </TabsContent>
                 </Tabs>
             </div>
