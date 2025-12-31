@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { SheetData } from '@/lib/sheet-utils';
+import { useSheet } from '@/lib/sheet-context';
 import {
   Table,
   TableBody,
@@ -9,7 +10,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, AlertCircle, Edit2, Check, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 interface DataTableProps {
   data: SheetData;
@@ -17,13 +19,45 @@ interface DataTableProps {
 }
 
 export function DataTable({ data, selectedColumns = [] }: DataTableProps) {
+  const { updateProject, activeProjectId } = useSheet();
   const [page, setPage] = useState(0);
+  const [editingColumn, setEditingColumn] = useState<string | null>(null);
+  const [tempColumnName, setTempColumnName] = useState("");
   const pageSize = 50;
   
   const displayColumns = selectedColumns.length > 0 ? selectedColumns : data.columns;
   const totalPages = Math.ceil(data.rows.length / pageSize);
   
   const paginatedData = data.rows.slice(page * pageSize, (page + 1) * pageSize);
+
+  const handleRenameColumn = (oldName: string) => {
+    if (!tempColumnName || tempColumnName === oldName) {
+      setEditingColumn(null);
+      return;
+    }
+
+    const newColumns = data.columns.map(c => c === oldName ? tempColumnName : c);
+    const newProfiles = { ...data.columnProfiles };
+    newProfiles[tempColumnName] = { ...newProfiles[oldName], name: tempColumnName };
+    delete newProfiles[oldName];
+
+    const newRows = data.rows.map(row => {
+      const newRow = { ...row };
+      newRow[tempColumnName] = row[oldName];
+      delete newRow[oldName];
+      return newRow;
+    });
+
+    updateProject(activeProjectId!, {
+      sheetData: {
+        ...data,
+        columns: newColumns,
+        columnProfiles: newProfiles,
+        rows: newRows
+      }
+    });
+    setEditingColumn(null);
+  };
 
   if (!data || data.rows.length === 0) {
     return (
@@ -43,8 +77,37 @@ export function DataTable({ data, selectedColumns = [] }: DataTableProps) {
                 <TableRow>
                 <TableHead className="w-[50px] text-center">#</TableHead>
                 {displayColumns.map((col) => (
-                    <TableHead key={col} className="whitespace-nowrap font-semibold text-primary/80">
-                        {col}
+                    <TableHead key={col} className="whitespace-nowrap font-semibold text-primary/80 group">
+                        <div className="flex items-center gap-2">
+                          {editingColumn === col ? (
+                            <div className="flex items-center gap-1">
+                              <Input 
+                                value={tempColumnName} 
+                                onChange={e => setTempColumnName(e.target.value)}
+                                className="h-7 w-32 text-xs"
+                                autoFocus
+                              />
+                              <Button size="icon" variant="ghost" className="h-6 w-6 text-emerald-600" onClick={() => handleRenameColumn(col)}>
+                                <Check className="h-3 w-3" />
+                              </Button>
+                              <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => setEditingColumn(null)}>
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <span>{data.columnProfiles[col].name}</span>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-6 w-6 opacity-0 group-hover:opacity-100" 
+                                onClick={() => { setEditingColumn(col); setTempColumnName(data.columnProfiles[col].name); }}
+                              >
+                                <Edit2 className="h-3 w-3" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                     </TableHead>
                 ))}
                 </TableRow>

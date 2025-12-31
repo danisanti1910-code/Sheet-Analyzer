@@ -4,6 +4,7 @@ export type ColumnType = 'numeric' | 'categorical' | 'datetime' | 'boolean' | 'u
 
 export interface ColumnProfile {
   name: string;
+  originalName: string;
   type: ColumnType;
   missingCount: number;
   missingPercentage: number;
@@ -36,9 +37,8 @@ export const parseSheet = async (file: File, headerMode: boolean = true): Promis
 export const processSheet = (workbook: WorkBook, sheetName: string, fileName: string, headerMode: boolean): SheetData => {
   const worksheet = workbook.Sheets[sheetName];
   
-  // Parse with header option
   const jsonData = utils.sheet_to_json(worksheet, { 
-    header: headerMode ? undefined : 1, // undefined = detect header row, 1 = array of arrays
+    header: headerMode ? undefined : 1,
     defval: null 
   });
 
@@ -48,13 +48,9 @@ export const processSheet = (workbook: WorkBook, sheetName: string, fileName: st
   if (headerMode) {
     rows = jsonData;
     if (rows.length > 0) {
-      // Normalize keys: trim, unique
-      const originalKeys = Object.keys(rows[0]);
-      columns = originalKeys; 
-      // Basic normalization could happen here if needed, but SheetJS handles most duplicates by appending _1
+      columns = Object.keys(rows[0]);
     }
   } else {
-    // Treat first row as data, generate Column_1, Column_2...
     const rawData = jsonData as any[][];
     if (rawData.length > 0) {
       const maxCols = rawData.reduce((acc, row) => Math.max(acc, row.length), 0);
@@ -91,14 +87,12 @@ const profileColumns = (rows: any[], columns: string[]): Record<string, ColumnPr
     const nonNullValues = values.filter(v => v !== null && v !== undefined && v !== '');
     const missingCount = values.length - nonNullValues.length;
     
-    // Type detection
     let type: ColumnType = 'unknown';
     if (nonNullValues.length === 0) {
       type = 'unknown';
     } else {
       const isNumeric = nonNullValues.every(v => !isNaN(Number(v)) && v !== '');
       const isBoolean = nonNullValues.every(v => v === true || v === false || v === 'true' || v === 'false');
-      // Simple date detection - can be improved
       const isDate = nonNullValues.every(v => !isNaN(Date.parse(v)) && isNaN(Number(v))); 
       
       if (isNumeric) type = 'numeric';
@@ -108,7 +102,6 @@ const profileColumns = (rows: any[], columns: string[]): Record<string, ColumnPr
     }
 
     const uniqueValues = new Set(nonNullValues);
-    
     let stats: Partial<ColumnProfile> = {};
     
     if (type === 'numeric') {
@@ -118,7 +111,6 @@ const profileColumns = (rows: any[], columns: string[]): Record<string, ColumnPr
       stats.max = nums[nums.length - 1];
       stats.mean = sum / nums.length;
       stats.median = nums[Math.floor(nums.length / 2)];
-      // Calculate std dev
       const variance = nums.reduce((a, b) => a + Math.pow(b - (stats.mean || 0), 2), 0) / nums.length;
       stats.std = Math.sqrt(variance);
     }
@@ -137,6 +129,7 @@ const profileColumns = (rows: any[], columns: string[]): Record<string, ColumnPr
 
     profiles[col] = {
       name: col,
+      originalName: col,
       type,
       missingCount,
       missingPercentage: (missingCount / rows.length) * 100,
