@@ -254,10 +254,10 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
                   </div>
                   <div className="grid gap-2">
                     <Label>Eje Y / Valor (opcional)</Label>
-                    <Select value={yAxis[0] || ''} onValueChange={(v) => setYAxis(v ? [v] : [])}>
+                    <Select value={yAxis[0] || 'none'} onValueChange={(v) => setYAxis(v === 'none' ? [] : [v])}>
                       <SelectTrigger><SelectValue placeholder="Seleccionar columna numérica" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Ninguno (conteo)</SelectItem>
+                        <SelectItem value="none">Ninguno (conteo)</SelectItem>
                         {data.columns.filter(c => data.columnProfiles[c]?.type === 'numeric').map(c => (
                           <SelectItem key={c} value={c}>{data.columnProfiles[c]?.name || c}</SelectItem>
                         ))}
