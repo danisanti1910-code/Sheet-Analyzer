@@ -69,9 +69,9 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
     if (initialConfig) return;
     if (selectedColumns.length === 0) return;
 
-    const numerics = selectedColumns.filter(c => data.columnProfiles[c].type === 'numeric');
-    const categoricals = selectedColumns.filter(c => data.columnProfiles[c].type === 'categorical' || data.columnProfiles[c].type === 'boolean');
-    const datetimes = selectedColumns.filter(c => data.columnProfiles[c].type === 'datetime');
+    const numerics = selectedColumns.filter(c => data.columnProfiles[c]?.type === 'numeric');
+    const categoricals = selectedColumns.filter(c => data.columnProfiles[c]?.type === 'categorical' || data.columnProfiles[c]?.type === 'boolean');
+    const datetimes = selectedColumns.filter(c => data.columnProfiles[c]?.type === 'datetime');
 
     if (datetimes.length > 0 && numerics.length > 0) {
       setChartType('line');
@@ -97,6 +97,8 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
   }, [selectedColumns, data, initialConfig]);
 
   const processedData = useMemo(() => {
+    if (!data.rows || data.rows.length === 0) return [];
+    
     if (aggregation === 'none' || !xAxis || yAxis.length === 0) {
       return data.rows.slice(0, 1000);
     }
@@ -151,6 +153,8 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
   };
 
   const renderChart = () => {
+    if (!processedData || processedData.length === 0) return <div className="flex items-center justify-center h-full text-muted-foreground">Sin datos para visualizar</div>;
+
     const commonProps = {
       data: processedData,
       margin: { top: 10, right: 30, left: 0, bottom: 0 }
@@ -244,7 +248,7 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
                     <Select value={xAxis} onValueChange={setXAxis}>
                       <SelectTrigger><SelectValue placeholder="Seleccionar columna" /></SelectTrigger>
                       <SelectContent>
-                        {data.columns.map(c => <SelectItem key={c} value={c}>{data.columnProfiles[c].name}</SelectItem>)}
+                        {data.columns.map(c => <SelectItem key={c} value={c}>{data.columnProfiles[c]?.name || c}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
@@ -254,8 +258,8 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
                       <SelectTrigger><SelectValue placeholder="Seleccionar columna numérica" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="">Ninguno (conteo)</SelectItem>
-                        {data.columns.filter(c => data.columnProfiles[c].type === 'numeric').map(c => (
-                          <SelectItem key={c} value={c}>{data.columnProfiles[c].name}</SelectItem>
+                        {data.columns.filter(c => data.columnProfiles[c]?.type === 'numeric').map(c => (
+                          <SelectItem key={c} value={c}>{data.columnProfiles[c]?.name || c}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
