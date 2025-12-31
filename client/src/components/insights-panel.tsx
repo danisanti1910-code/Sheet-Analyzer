@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Wand2 } from 'lucide-react';
+import React from 'react';
 
 interface InsightsPanelProps {
   sheetData: SheetData;
@@ -13,8 +14,6 @@ interface InsightsPanelProps {
 export function InsightsPanel({ sheetData, selectedColumns }: InsightsPanelProps) {
   
   const generateNarrative = () => {
-    // Mock narrative generation - in a real app this could use an LLM
-    // For MVP we construct a template based on stats
     const narratives: string[] = [];
     
     selectedColumns.forEach(col => {
@@ -44,23 +43,23 @@ export function InsightsPanel({ sheetData, selectedColumns }: InsightsPanelProps
   }
 
   return (
-    <div className="space-y-6 animate-in slide-in-from-right duration-500">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+    <div className="space-y-6 animate-in slide-in-from-right duration-500 w-full">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:flex xl:flex-wrap">
         {selectedColumns.map(col => {
           const profile = sheetData.columnProfiles[col];
           if (!profile) return null;
 
           return (
-            <Card key={col} className="overflow-hidden border-l-4 border-l-primary shadow-sm hover:shadow-md transition-shadow">
+            <Card key={col} className="overflow-hidden border-l-4 border-l-primary shadow-sm hover:shadow-md transition-shadow xl:w-[280px] shrink-0">
               <CardHeader className="pb-2 bg-muted/10">
-                <div className="flex justify-between items-start">
-                  <CardTitle className="text-base font-semibold truncate" title={col}>
+                <div className="flex justify-between items-start gap-2">
+                  <CardTitle className="text-sm font-semibold truncate" title={col}>
                     {col}
                   </CardTitle>
-                  <Badge variant="outline" className="text-xs uppercase tracking-wider">{profile.type}</Badge>
+                  <Badge variant="outline" className="text-[10px] uppercase tracking-wider shrink-0">{profile.type}</Badge>
                 </div>
               </CardHeader>
-              <CardContent className="pt-4 text-sm space-y-2">
+              <CardContent className="pt-4 text-xs space-y-2">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Faltantes:</span>
                   <span className={profile.missingCount > 0 ? "text-amber-600 font-medium" : "text-green-600"}>
@@ -82,12 +81,12 @@ export function InsightsPanel({ sheetData, selectedColumns }: InsightsPanelProps
                   </>
                 )}
 
-                {profile.type === 'categorical' && profile.topCategories && (
+                {(profile.type === 'categorical' || profile.type === 'boolean') && profile.topCategories && (
                    <div className="border-t pt-2 mt-2">
-                     <span className="text-xs text-muted-foreground mb-1 block">Top Categorías:</span>
+                     <span className="text-[10px] text-muted-foreground mb-1 block">Top Categorías:</span>
                      <ul className="space-y-1">
                        {profile.topCategories.slice(0, 3).map((cat, i) => (
-                         <li key={i} className="flex justify-between text-xs">
+                         <li key={i} className="flex justify-between text-[10px]">
                            <span className="truncate max-w-[120px]">{cat.value}</span>
                            <span className="font-mono bg-muted px-1 rounded">{cat.count}</span>
                          </li>
@@ -114,7 +113,7 @@ export function InsightsPanel({ sheetData, selectedColumns }: InsightsPanelProps
       {narrative && (
         <Card className="bg-indigo-50 border-indigo-100 dark:bg-indigo-950/20 dark:border-indigo-900">
             <CardContent className="pt-6">
-                <p className="text-indigo-900 dark:text-indigo-100 leading-relaxed">
+                <p className="text-indigo-900 dark:text-indigo-100 leading-relaxed text-sm">
                     {narrative}
                 </p>
             </CardContent>
@@ -123,5 +122,3 @@ export function InsightsPanel({ sheetData, selectedColumns }: InsightsPanelProps
     </div>
   );
 }
-
-import React from 'react';

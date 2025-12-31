@@ -7,7 +7,7 @@ import { InsightsPanel } from '@/components/insights-panel';
 import { DataTable } from '@/components/data-table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
-import { AlertCircle, RefreshCw, AlertTriangle, UserCheck, Trash2, Edit3, Upload } from "lucide-react";
+import { AlertCircle, RefreshCw, AlertTriangle, UserCheck, Trash2, Edit3 } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { Link, useLocation } from 'wouter';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -18,6 +18,7 @@ export default function Analyze() {
   const { activeProject, updateProject, refreshProjectData, activeProjectId, user } = useSheet();
   const [, setLocation] = useLocation();
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
+  const [filteredValues, setFilteredValues] = useState<Record<string, string[]>>({});
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempName, setTempName] = useState(activeProject?.name || "");
 
@@ -27,9 +28,26 @@ export default function Analyze() {
     }
   }, [user, setLocation]);
 
+  const handleFilterChange = (col: string, values: string[]) => {
+    setFilteredValues(prev => ({ ...prev, [col]: values }));
+  };
+
+  const filteredData = useMemo(() => {
+    const sourceData = activeProject?.sheetData;
+    if (!sourceData) return null;
+    let rows = sourceData.rows;
+    
+    Object.entries(filteredValues).forEach(([col, values]) => {
+      rows = rows.filter(r => values.includes(String(r[col])));
+    });
+
+    return { ...sourceData, rows, rowCount: rows.length };
+  }, [activeProject?.sheetData, filteredValues]);
+
   const duplicates = useMemo(() => {
-    if (!activeProject?.sheetData) return [];
-    const rows = activeProject.sheetData.rows;
+    const dataToUse = filteredData || activeProject?.sheetData;
+    if (!dataToUse) return [];
+    const rows = dataToUse.rows;
     const seen = new Set();
     const dups: number[] = [];
     rows.forEach((row, idx) => {
@@ -38,7 +56,7 @@ export default function Analyze() {
       seen.add(str);
     });
     return dups;
-  }, [activeProject?.sheetData]);
+  }, [filteredData, activeProject?.sheetData]);
 
   const [ignoredDuplicates, setIgnoredDuplicates] = useState<Set<number>>(new Set());
 
@@ -56,7 +74,6 @@ export default function Analyze() {
     );
   }
 
-  // If project exists but no data, show upload only for THIS project
   if (!activeProject.sheetData) {
     return (
       <Layout>
@@ -83,6 +100,8 @@ export default function Analyze() {
         sheetData: { ...activeProject.sheetData!, rows: newRows, rowCount: newRows.length } 
     });
   };
+
+  const displayData = filteredData || activeProject.sheetData;
 
   return (
     <Layout>
@@ -120,7 +139,13 @@ export default function Analyze() {
 
         <ResizablePanelGroup direction="horizontal" className="flex-1">
           <ResizablePanel defaultSize={20} minSize={15} className="hidden md:block">
-            <ColumnSidebar data={activeProject.sheetData} selectedColumns={selectedColumns} onSelectionChange={setSelectedColumns} />
+            <ColumnSidebar 
+              data={activeProject.sheetData} 
+              selectedColumns={selectedColumns} 
+              onSelectionChange={setSelectedColumns}
+              filteredValues={filteredValues}
+              onFilterChange={handleFilterChange}
+            />
           </ResizablePanel>
           <ResizableHandle />
           <ResizablePanel defaultSize={80}>
@@ -133,16 +158,18 @@ export default function Analyze() {
                   </TabsList>
 
                   <TabsContent value="visualize" className="space-y-4">
-                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div className="lg:col-span-2 h-[500px]">
-                            <ChartBuilder data={activeProject.sheetData} selectedColumns={selectedColumns} />
+                     <div className="flex flex-col xl:flex-row gap-6">
+                        <div className="flex-1 h-[600px]">
+                            <ChartBuilder data={displayData} selectedColumns={selectedColumns} />
                         </div>
-                        <InsightsPanel sheetData={activeProject.sheetData} selectedColumns={selectedColumns} />
+                        <div className="w-full xl:w-[400px] shrink-0">
+                            <InsightsPanel sheetData={displayData} selectedColumns={selectedColumns} />
+                        </div>
                      </div>
                   </TabsContent>
 
                   <TabsContent value="data">
-                    <DataTable data={activeProject.sheetData} selectedColumns={selectedColumns} />
+                    <DataTable data={displayData} selectedColumns={selectedColumns} />
                   </TabsContent>
 
                   <TabsContent value="duplicates">
@@ -154,7 +181,7 @@ export default function Analyze() {
                             <div key={idx} className={`p-4 border rounded-lg flex items-center justify-between ${ignoredDuplicates.has(idx) ? 'opacity-50' : ''}`}>
                               <div className="text-sm truncate max-w-md">
                                 <span className="font-mono text-xs mr-2 text-muted-foreground">Fila {idx + 1}</span>
-                                {JSON.stringify(activeProject.sheetData!.rows[idx]).substring(0, 100)}...
+                                {JSON.stringify(displayData.rows[idx]).substring(0, 100)}...
                               </div>
                               <div className="flex gap-2">
                                 <Button size="sm" variant="outline" className="gap-1" onClick={() => setIgnoredDuplicates(prev => new Set([...prev, idx]))}>

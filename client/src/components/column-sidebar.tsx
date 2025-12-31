@@ -2,17 +2,21 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Hash, Calendar, Type, ToggleLeft } from "lucide-react";
+import { Search, Hash, Calendar, Type, ToggleLeft, Filter } from "lucide-react";
 import { SheetData } from "@/lib/sheet-utils";
 import React from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
 
 interface ColumnSidebarProps {
   data: SheetData;
   selectedColumns: string[];
   onSelectionChange: (cols: string[]) => void;
+  filteredValues: Record<string, string[]>;
+  onFilterChange: (col: string, values: string[]) => void;
 }
 
-export function ColumnSidebar({ data, selectedColumns, onSelectionChange }: ColumnSidebarProps) {
+export function ColumnSidebar({ data, selectedColumns, onSelectionChange, filteredValues, onFilterChange }: ColumnSidebarProps) {
   const [searchTerm, setSearchTerm] = React.useState("");
 
   const filteredColumns = data.columns.filter(col => 
@@ -67,14 +71,16 @@ export function ColumnSidebar({ data, selectedColumns, onSelectionChange }: Colu
           {filteredColumns.map((col) => {
             const profile = data.columnProfiles[col];
             const isSelected = selectedColumns.includes(col);
+            const uniqueValues = Array.from(new Set(data.rows.map(r => String(r[col])))).sort();
+            const selectedFilters = filteredValues[col] || uniqueValues;
+
             return (
               <div 
                 key={col}
                 className={`
-                  flex items-start space-x-3 p-2 rounded-md cursor-pointer transition-colors
+                  flex items-start space-x-3 p-2 rounded-md transition-colors group
                   ${isSelected ? 'bg-accent' : 'hover:bg-sidebar-accent/50'}
                 `}
-                onClick={() => toggleColumn(col)}
               >
                 <Checkbox 
                   checked={isSelected} 
@@ -83,18 +89,49 @@ export function ColumnSidebar({ data, selectedColumns, onSelectionChange }: Colu
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-1">
-                    <span className="text-sm font-medium truncate">{col}</span>
-                    <Badge variant="secondary" className={`h-4 px-1 text-[9px] gap-0.5 shrink-0 ${getTypeColor(profile.type)}`}>
-                      {getIcon(profile.type)}
-                      {profile.type.substring(0, 3)}
-                    </Badge>
+                    <span className="text-sm font-medium truncate cursor-pointer" onClick={() => toggleColumn(col)}>{col}</span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {isSelected && profile.type !== 'numeric' && (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-5 w-5 opacity-0 group-hover:opacity-100">
+                              <Filter className="h-3 w-3" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-56 p-2" align="start">
+                            <div className="space-y-2">
+                              <p className="text-xs font-bold px-1 uppercase tracking-wider text-muted-foreground">Filtrar valores</p>
+                              <ScrollArea className="h-48 pr-3">
+                                <div className="space-y-1">
+                                  {uniqueValues.map(val => (
+                                    <div key={val} className="flex items-center gap-2 p-1 hover:bg-muted rounded text-xs">
+                                      <Checkbox 
+                                        checked={selectedFilters.includes(val)}
+                                        onCheckedChange={(checked) => {
+                                          const newFilters = checked 
+                                            ? [...selectedFilters, val]
+                                            : selectedFilters.filter(v => v !== val);
+                                          onFilterChange(col, newFilters);
+                                        }}
+                                      />
+                                      <span className="truncate">{val}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </ScrollArea>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                      <Badge variant="secondary" className={`h-4 px-1 text-[9px] gap-0.5 ${getTypeColor(profile.type)}`}>
+                        {getIcon(profile.type)}
+                        {profile.type.substring(0, 3)}
+                      </Badge>
+                    </div>
                   </div>
                   <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
                     {profile.uniqueCount} datos únicos detectados
                   </p>
-                  <div className="flex items-center text-[9px] text-muted-foreground/70 mt-1 gap-1.5">
-                    <span>{profile.missingPercentage > 0 ? `${profile.missingPercentage.toFixed(0)}% nulos` : 'Completo'}</span>
-                  </div>
                 </div>
               </div>
             );

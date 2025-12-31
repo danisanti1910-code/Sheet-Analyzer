@@ -49,6 +49,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     login({
@@ -65,6 +68,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const handleRegisterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
+    const password = formData.get('password') as string;
+    const confirmPassword = formData.get('confirmPassword') as string;
+
+    if (password !== confirmPassword) {
+      toast({ title: "Las contraseñas no coinciden", variant: "destructive" });
+      return;
+    }
+
     login({
       firstName: formData.get('firstName') as string,
       lastName: formData.get('lastName') as string,
@@ -146,6 +157,44 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         <SelectItem value="marketing">Marketing y Ventas</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2 relative">
+                      <Label htmlFor="reg-password">Contraseña</Label>
+                      <Input 
+                        id="reg-password" 
+                        name="password" 
+                        type={showPassword ? "text" : "password"} 
+                        required 
+                      />
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="sm" 
+                        className="absolute right-0 bottom-0 h-10 px-3" 
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? "Ocultar" : "Ver"}
+                      </Button>
+                    </div>
+                    <div className="space-y-2 relative">
+                      <Label htmlFor="reg-confirmPassword">Confirmar</Label>
+                      <Input 
+                        id="reg-confirmPassword" 
+                        name="confirmPassword" 
+                        type={showConfirmPassword ? "text" : "password"} 
+                        required 
+                      />
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="sm" 
+                        className="absolute right-0 bottom-0 h-10 px-3" 
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      >
+                        {showConfirmPassword ? "Ocultar" : "Ver"}
+                      </Button>
+                    </div>
                   </div>
                   <Button type="submit" className="w-full h-11 mt-4">Comenzar ahora</Button>
                 </form>
