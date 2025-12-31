@@ -1,7 +1,6 @@
 import { FileUpload } from "@/components/file-upload";
 import { Layout } from "@/components/layout";
 import { useSheet } from "@/lib/sheet-context";
-import { useLocation } from "wouter";
 import generatedImage from '@assets/generated_images/abstract_data_visualization_waves_header_background.png';
 import { Shield, Zap, Database, ArrowRight, Upload, BarChart3, LayoutDashboard, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,22 +22,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
 
 export default function Home() {
-  const { sheetData } = useSheet();
-  const [, setLocation] = useLocation();
+  const { user, login } = useSheet();
   const { toast } = useToast();
-  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+    login({
+      firstName: formData.get('firstName') as string,
+      lastName: formData.get('lastName') as string,
+      email: formData.get('email') as string,
+      useCase: formData.get('useCase') as string
+    });
     toast({
       title: "Cuenta creada",
       description: "¡Bienvenido a Sheet Analyzer! Ahora puedes empezar.",
     });
-    setIsRegisterOpen(false);
-    document.getElementById('upload-section')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const steps = [
@@ -94,49 +95,55 @@ export default function Home() {
                 La herramienta más sencilla para analizar hojas de cálculo. Visualizaciones automáticas y limpieza de datos en segundos, sin complicaciones.
               </p>
               <div className="mt-10 flex items-center gap-x-6">
-                <Dialog open={isRegisterOpen} onOpenChange={setIsRegisterOpen}>
-                  <DialogTrigger asChild>
-                    <Button size="lg" className="rounded-full h-12 px-8 text-base shadow-xl shadow-primary/20">
-                      Empezar gratis <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader>
-                      <DialogTitle className="text-2xl font-bold">Crea tu cuenta gratis</DialogTitle>
-                    </DialogHeader>
-                    <form onSubmit={handleRegister} className="space-y-4 py-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="firstName">Nombre</Label>
-                          <Input id="firstName" placeholder="Nombre" required />
+                {!user ? (
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button size="lg" className="rounded-full h-12 px-8 text-base shadow-xl shadow-primary/20">
+                        Empezar gratis <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                      <DialogHeader>
+                        <DialogTitle className="text-2xl font-bold">Crea tu cuenta gratis</DialogTitle>
+                      </DialogHeader>
+                      <form onSubmit={handleRegister} className="space-y-4 py-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="firstName">Nombre</Label>
+                            <Input id="firstName" name="firstName" placeholder="Nombre" required />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="lastName">Apellido</Label>
+                            <Input id="lastName" name="lastName" placeholder="Apellido" required />
+                          </div>
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="lastName">Apellido</Label>
-                          <Input id="lastName" placeholder="Apellido" required />
+                          <Label htmlFor="email">Correo electrónico</Label>
+                          <Input id="email" name="email" type="email" placeholder="tu@email.com" required />
                         </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="email">Correo electrónico</Label>
-                        <Input id="email" type="email" placeholder="tu@email.com" required />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="use-case">¿Para qué usarás el sistema?</Label>
-                        <Select required>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecciona una opción" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="business">Análisis de Negocios</SelectItem>
-                            <SelectItem value="education">Educación / Investigación</SelectItem>
-                            <SelectItem value="personal">Uso Personal</SelectItem>
-                            <SelectItem value="marketing">Marketing y Ventas</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button type="submit" className="w-full h-11 mt-4">Comenzar ahora</Button>
-                    </form>
-                  </DialogContent>
-                </Dialog>
+                        <div className="space-y-2">
+                          <Label htmlFor="use-case">¿Para qué usarás el sistema?</Label>
+                          <Select name="useCase" required>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecciona una opción" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="business">Análisis de Negocios</SelectItem>
+                              <SelectItem value="education">Educación / Investigación</SelectItem>
+                              <SelectItem value="personal">Uso Personal</SelectItem>
+                              <SelectItem value="marketing">Marketing y Ventas</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button type="submit" className="w-full h-11 mt-4">Comenzar ahora</Button>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
+                ) : (
+                  <Button size="lg" className="rounded-full h-12 px-8 text-base shadow-xl shadow-primary/20" onClick={() => document.getElementById('upload-section')?.scrollIntoView({ behavior: 'smooth' })}>
+                    Empezar a analizar <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                )}
                 <Button variant="ghost" size="lg" className="rounded-full h-12" onClick={() => document.getElementById('steps-section')?.scrollIntoView({ behavior: 'smooth' })}>
                   Ver cómo funciona
                 </Button>
@@ -174,7 +181,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Demo Section / Features */}
+        {/* Demo Section */}
         <section className="py-24 border-y bg-background">
           <div className="container max-w-6xl mx-auto px-4">
             <div className="flex flex-col lg:flex-row items-center gap-16">
@@ -195,23 +202,14 @@ export default function Home() {
                       <p className="text-sm text-muted-foreground">Identifica y resuelve entradas duplicadas con un solo clic.</p>
                     </div>
                   </div>
-                  <div className="flex gap-4">
-                    <div className="mt-1 bg-primary/10 p-1 rounded-full"><CheckCircle2 className="w-5 h-5 text-primary" /></div>
-                    <div>
-                      <h4 className="font-semibold">Exportación flexible</h4>
-                      <p className="text-sm text-muted-foreground">Descarga tus gráficos en PNG o tus datos procesados en CSV.</p>
-                    </div>
-                  </div>
                 </div>
               </div>
               <div className="flex-1 w-full max-w-xl">
                 <div className="aspect-video rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 border shadow-2xl overflow-hidden relative group">
-                   {/* Abstract representation of UI */}
                    <div className="absolute inset-4 bg-background rounded-lg shadow-sm border p-4 flex flex-col gap-4 overflow-hidden">
                       <div className="h-4 w-32 bg-muted rounded shrink-0" />
                       <div className="flex-1 flex gap-4">
                         <div className="w-24 bg-muted/30 rounded flex flex-col gap-2 p-2">
-                           <div className="h-2 w-full bg-muted rounded" />
                            <div className="h-2 w-full bg-muted rounded" />
                            <div className="h-2 w-full bg-muted rounded" />
                         </div>
@@ -220,7 +218,6 @@ export default function Home() {
                         </div>
                       </div>
                    </div>
-                   <div className="absolute inset-0 bg-gradient-to-t from-background/40 to-transparent pointer-events-none" />
                 </div>
               </div>
             </div>

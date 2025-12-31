@@ -11,7 +11,9 @@ import {
   Menu,
   FolderOpen,
   Plus,
-  Trash2
+  Trash2,
+  LogOut,
+  User as UserIcon
 } from "lucide-react";
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -30,13 +32,18 @@ import {
   DialogFooter
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
-  const { projects, activeProjectId, setActiveProjectId, createProject, deleteProject } = useSheet();
+  const { projects, activeProjectId, setActiveProjectId, createProject, deleteProject, user, login, logout } = useSheet();
   const [collapsed, setCollapsed] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const { toast } = useToast();
 
   const isActive = (path: string) => location === path;
 
@@ -49,6 +56,116 @@ export function Layout({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const handleLoginSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    login({
+      firstName: "Usuario",
+      lastName: "Demo",
+      email: "usuario@demo.com",
+      useCase: "Personal"
+    });
+    toast({ title: "Bienvenido de nuevo" });
+    setIsLoginOpen(false);
+  };
+
+  const handleRegisterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+    login({
+      firstName: formData.get('firstName') as string,
+      lastName: formData.get('lastName') as string,
+      email: formData.get('email') as string,
+      useCase: formData.get('useCase') as string
+    });
+    toast({ title: "Cuenta creada con éxito" });
+    setIsLoginOpen(false);
+  };
+
+  // If NO USER, show simpler layout without sidebar
+  if (!user) {
+    return (
+      <div className="flex flex-col h-screen bg-background font-sans overflow-hidden">
+        <header className="flex h-16 items-center justify-between px-8 border-b bg-background/95 backdrop-blur sticky top-0 z-50">
+          <Link href="/" className="flex items-center space-x-3">
+            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+              <FileSpreadsheet className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <span className="font-bold text-lg tracking-tight">Sheet Analyzer</span>
+          </Link>
+          <div className="flex items-center gap-4">
+            <Dialog open={isLoginOpen} onOpenChange={setIsLoginOpen}>
+              <DialogTrigger asChild>
+                <Button variant="ghost">Iniciar Sesión</Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Ingresa a tu cuenta</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleLoginSubmit} className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Correo electrónico</Label>
+                    <Input id="email" type="email" placeholder="tu@email.com" defaultValue="usuario@demo.com" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Contraseña</Label>
+                    <Input id="password" type="password" placeholder="••••••••" defaultValue="password" required />
+                  </div>
+                  <Button type="submit" className="w-full h-11">Ingresar</Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button className="rounded-full px-6">Empezar gratis</Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle className="text-2xl font-bold">Crea tu cuenta gratis</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleRegisterSubmit} className="space-y-4 py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="reg-firstName">Nombre</Label>
+                      <Input id="reg-firstName" name="firstName" placeholder="Nombre" required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="reg-lastName">Apellido</Label>
+                      <Input id="reg-lastName" name="lastName" placeholder="Apellido" required />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="reg-email">Correo electrónico</Label>
+                    <Input id="reg-email" name="email" type="email" placeholder="tu@email.com" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="reg-use-case">¿Para qué usarás el sistema?</Label>
+                    <Select name="useCase" required>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona una opción" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="business">Análisis de Negocios</SelectItem>
+                        <SelectItem value="education">Educación / Investigación</SelectItem>
+                        <SelectItem value="personal">Uso Personal</SelectItem>
+                        <SelectItem value="marketing">Marketing y Ventas</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button type="submit" className="w-full h-11 mt-4">Comenzar ahora</Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </header>
+        <main className="flex-1 overflow-y-auto overflow-x-hidden">
+          {children}
+        </main>
+      </div>
+    );
+  }
+
+  // LOGGED IN LAYOUT with SIDEBAR
   return (
     <div className="flex h-screen bg-background overflow-hidden font-sans">
       <aside className={`relative z-20 flex flex-col border-r bg-sidebar transition-all duration-300 ${collapsed ? 'w-16' : 'w-64'}`}>
@@ -130,7 +247,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <div className="p-2 border-t">
+        <div className="mt-auto p-4 border-t">
+          <div className="flex items-center justify-between mb-4">
+             {!collapsed && (
+               <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <UserIcon className="h-4 w-4" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-bold truncate max-w-[100px]">{user.firstName}</span>
+                    <span className="text-[10px] text-muted-foreground truncate max-w-[100px]">{user.email}</span>
+                  </div>
+               </div>
+             )}
+             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={logout} title="Salir">
+               <LogOut className="h-4 w-4" />
+             </Button>
+          </div>
           <Button variant="ghost" size="icon" className="w-full h-10" onClick={() => setCollapsed(!collapsed)}>
             {collapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
           </Button>

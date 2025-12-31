@@ -19,6 +19,13 @@ export interface Project {
   sourceUrl?: string;
 }
 
+export interface User {
+  firstName: string;
+  lastName: string;
+  email: string;
+  useCase: string;
+}
+
 interface SheetContextType {
   projects: Project[];
   activeProjectId: string | null;
@@ -28,6 +35,11 @@ interface SheetContextType {
   deleteProject: (id: string) => void;
   refreshProjectData: (id: string) => Promise<void>;
   
+  // Auth mock
+  user: User | null;
+  login: (user: User) => void;
+  logout: () => void;
+
   // Computed for active project
   activeProject: Project | null;
   saveView: (view: Omit<SavedView, 'id' | 'timestamp'>) => void;
@@ -35,7 +47,7 @@ interface SheetContextType {
   updateViewName: (viewId: string, name: string) => void;
 }
 
-import React, { createContext, useContext, useState, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
 const SheetContext = createContext<SheetContextType | undefined>(undefined);
@@ -43,11 +55,29 @@ const SheetContext = createContext<SheetContextType | undefined>(undefined);
 export const SheetProvider = ({ children }: { children: ReactNode }) => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const { toast } = useToast();
 
   const activeProject = useMemo(() => 
     projects.find(p => p.id === activeProjectId) || null
   , [projects, activeProjectId]);
+
+  const login = (userData: User) => {
+    setUser(userData);
+    localStorage.setItem('sheet_analyzer_user', JSON.stringify(userData));
+  };
+
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem('sheet_analyzer_user');
+  };
+
+  useEffect(() => {
+    const saved = localStorage.getItem('sheet_analyzer_user');
+    if (saved) {
+      setUser(JSON.parse(saved));
+    }
+  }, []);
 
   const createProject = (name: string) => {
     const newProject: Project = {
@@ -136,7 +166,10 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
       activeProject,
       saveView, 
       deleteView,
-      updateViewName
+      updateViewName,
+      user,
+      login,
+      logout
     }}>
       {children}
     </SheetContext.Provider>
