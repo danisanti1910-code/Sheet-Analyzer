@@ -3,26 +3,19 @@ import { useSheet } from "@/lib/sheet-context";
 import { 
   FileSpreadsheet, 
   BarChart3, 
-  Info, 
   LayoutDashboard, 
   Home, 
   ChevronLeft,
   ChevronRight,
-  Menu,
   FolderOpen,
   Plus,
   Trash2,
   LogOut,
-  User as UserIcon
+  User as UserIcon,
+  LayoutGrid
 } from "lucide-react";
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { 
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { 
   Dialog,
   DialogContent,
@@ -66,6 +59,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     });
     toast({ title: "Bienvenido de nuevo" });
     setIsLoginOpen(false);
+    setLocation("/projects");
   };
 
   const handleRegisterSubmit = (e: React.FormEvent) => {
@@ -79,6 +73,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     });
     toast({ title: "Cuenta creada con éxito" });
     setIsLoginOpen(false);
+    setLocation("/projects");
   };
 
   // If NO USER, show simpler layout without sidebar
@@ -170,7 +165,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen bg-background overflow-hidden font-sans">
       <aside className={`relative z-20 flex flex-col border-r bg-sidebar transition-all duration-300 ${collapsed ? 'w-16' : 'w-64'}`}>
         <div className="flex h-14 items-center px-4 border-b shrink-0">
-          <Link href="/" className="flex items-center space-x-3 overflow-hidden">
+          <Link href="/projects" className="flex items-center space-x-3 overflow-hidden">
             <div className="flex-shrink-0 h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <FileSpreadsheet className="h-5 w-5 text-primary-foreground" />
             </div>
@@ -202,48 +197,46 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="px-3 mb-2">
-            {!collapsed && <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 px-3">Proyectos</p>}
+             <nav className="space-y-1">
+                <Link href="/projects" className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${isActive('/projects') ? 'bg-primary text-primary-foreground' : 'hover:bg-sidebar-accent'}`}>
+                  <LayoutGrid className="h-4 w-4" /> {!collapsed && <span>Mis Proyectos</span>}
+                </Link>
+             </nav>
+          </div>
+
+          {activeProjectId && (
+            <div className="px-3 mt-4 pt-4 border-t">
+              {!collapsed && <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 px-3">Proyecto Activo</p>}
+              <nav className="space-y-1">
+                  <Link href="/analyze" className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${isActive('/analyze') ? 'bg-primary text-primary-foreground' : 'hover:bg-sidebar-accent'}`}>
+                    <BarChart3 className="h-4 w-4" /> {!collapsed && <span>Análisis</span>}
+                  </Link>
+                  <Link href="/dashboards" className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${isActive('/dashboards') ? 'bg-primary text-primary-foreground' : 'hover:bg-sidebar-accent'}`}>
+                    <LayoutDashboard className="h-4 w-4" /> {!collapsed && <span>Dashboards</span>}
+                  </Link>
+              </nav>
+            </div>
+          )}
+
+          <div className="px-3 mt-4 pt-4 border-t">
+            {!collapsed && <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 px-3">Recientes</p>}
             <div className="space-y-1">
-              {projects.map(project => (
+              {projects.slice(0, 5).map(project => (
                 <div key={project.id} className="group flex items-center gap-1">
                   <Button 
                     variant={activeProjectId === project.id ? "secondary" : "ghost"}
                     className={`flex-1 justify-start gap-3 h-9 ${collapsed ? 'px-3' : 'px-3'}`}
                     onClick={() => {
                       setActiveProjectId(project.id);
-                      if (location === '/') setLocation('/analyze');
+                      setLocation('/analyze');
                     }}
                   >
                     <FolderOpen className={`h-4 w-4 shrink-0 ${activeProjectId === project.id ? 'text-primary' : ''}`} />
-                    {!collapsed && <span className="truncate">{project.name}</span>}
+                    {!collapsed && <span className="truncate text-xs">{project.name}</span>}
                   </Button>
-                  {!collapsed && (
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-8 w-8 opacity-0 group-hover:opacity-100 text-destructive"
-                      onClick={(e) => { e.stopPropagation(); deleteProject(project.id); }}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  )}
                 </div>
               ))}
             </div>
-          </div>
-
-          <div className="border-t mt-4 pt-4 px-3">
-             <nav className="space-y-1">
-                <Link href="/" className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${isActive('/') ? 'bg-primary text-primary-foreground' : 'hover:bg-sidebar-accent'}`}>
-                  <Home className="h-4 w-4" /> {!collapsed && <span>Inicio</span>}
-                </Link>
-                <Link href="/analyze" className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${!activeProjectId ? 'opacity-50 pointer-events-none' : ''} ${isActive('/analyze') ? 'bg-primary text-primary-foreground' : 'hover:bg-sidebar-accent'}`}>
-                  <BarChart3 className="h-4 w-4" /> {!collapsed && <span>Análisis</span>}
-                </Link>
-                <Link href="/dashboards" className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${!activeProjectId ? 'opacity-50 pointer-events-none' : ''} ${isActive('/dashboards') ? 'bg-primary text-primary-foreground' : 'hover:bg-sidebar-accent'}`}>
-                  <LayoutDashboard className="h-4 w-4" /> {!collapsed && <span>Dashboards</span>}
-                </Link>
-             </nav>
           </div>
         </div>
 
@@ -260,7 +253,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   </div>
                </div>
              )}
-             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={logout} title="Salir">
+             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => { logout(); setLocation('/'); }} title="Salir">
                <LogOut className="h-4 w-4" />
              </Button>
           </div>
