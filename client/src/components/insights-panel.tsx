@@ -3,18 +3,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Wand2, Check } from 'lucide-react';
+import { Wand2, Check, Filter } from 'lucide-react';
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface InsightsPanelProps {
   sheetData: SheetData;
+  sourceData: SheetData;
   selectedColumns: string[];
   filteredValues: Record<string, string[]>;
   onFilterChange: (col: string, values: string[]) => void;
 }
 
-export function InsightsPanel({ sheetData, selectedColumns, filteredValues, onFilterChange }: InsightsPanelProps) {
+export function InsightsPanel({ sheetData, sourceData, selectedColumns, filteredValues, onFilterChange }: InsightsPanelProps) {
   
   const generateNarrative = () => {
     const narratives: string[] = [];
@@ -52,17 +55,69 @@ export function InsightsPanel({ sheetData, selectedColumns, filteredValues, onFi
           const profile = sheetData.columnProfiles[col];
           if (!profile) return null;
 
-          const uniqueValues = Array.from(new Set(sheetData.rows.map(r => String(r[col])))).sort();
-          const selectedFilters = filteredValues[col] || uniqueValues;
+          const allPossibleValues = Array.from(new Set(sourceData.rows.map(r => String(r[col])))).sort();
+          const selectedFilters = filteredValues[col] || allPossibleValues;
 
           return (
             <Card key={col} className="overflow-hidden border-l-4 border-l-primary shadow-sm hover:shadow-md transition-shadow xl:w-[280px] shrink-0">
               <CardHeader className="pb-2 bg-muted/10">
                 <div className="flex justify-between items-start gap-2">
-                  <CardTitle className="text-sm font-semibold truncate" title={col}>
-                    {col}
-                  </CardTitle>
-                  <Badge variant="outline" className="text-[10px] uppercase tracking-wider shrink-0">{profile.type}</Badge>
+                  <div className="flex flex-col min-w-0">
+                    <CardTitle className="text-sm font-semibold truncate" title={col}>
+                      {col}
+                    </CardTitle>
+                    <Badge variant="outline" className="text-[10px] uppercase tracking-wider w-fit mt-1">{profile.type}</Badge>
+                  </div>
+                  
+                  {(profile.type === 'categorical' || profile.type === 'boolean') && (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" data-testid={`button-filter-${col}`}>
+                          <Filter className="h-3.5 w-3.5" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-56 p-2" align="end">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between border-b pb-1">
+                            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Filtrar</span>
+                            <Button 
+                                variant="ghost" 
+                                className="h-6 text-[10px] px-2" 
+                                onClick={() => onFilterChange(col, allPossibleValues)}
+                                data-testid={`button-select-all-${col}`}
+                            >
+                                Todos
+                            </Button>
+                          </div>
+                          <ScrollArea className="h-48 pr-2">
+                            <div className="space-y-1">
+                              {allPossibleValues.map((val) => {
+                                const isSelected = selectedFilters.includes(val);
+                                return (
+                                  <div key={val} className="flex items-center gap-2 p-1.5 hover:bg-muted rounded text-[11px]">
+                                    <Checkbox 
+                                      id={`filter-${col}-${val}`}
+                                      checked={isSelected}
+                                      onCheckedChange={(checked) => {
+                                        const newFilters = checked 
+                                          ? [...selectedFilters, val]
+                                          : selectedFilters.filter(v => v !== val);
+                                        onFilterChange(col, newFilters);
+                                      }}
+                                      data-testid={`checkbox-filter-${col}-${val}`}
+                                    />
+                                    <label htmlFor={`filter-${col}-${val}`} className="truncate flex-1 cursor-pointer">
+                                      {val}
+                                    </label>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </ScrollArea>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="pt-4 text-xs space-y-2">
@@ -87,34 +142,17 @@ export function InsightsPanel({ sheetData, selectedColumns, filteredValues, onFi
                   </>
                 )}
 
-                {(profile.type === 'categorical' || profile.type === 'boolean') && (
+                {(profile.type === 'categorical' || profile.type === 'boolean') && profile.topCategories && (
                    <div className="border-t pt-2 mt-2">
-                     <span className="text-[10px] text-muted-foreground mb-1 block">Filtrar por valor:</span>
-                     <ScrollArea className="h-24 pr-2">
-                       <div className="space-y-1">
-                         {uniqueValues.map((val) => {
-                           const isSelected = selectedFilters.includes(val);
-                           return (
-                             <button
-                               key={val}
-                               onClick={() => {
-                                 const newFilters = isSelected 
-                                   ? selectedFilters.filter(v => v !== val)
-                                   : [...selectedFilters, val];
-                                 onFilterChange(col, newFilters);
-                               }}
-                               className={cn(
-                                 "w-full flex items-center justify-between p-1.5 rounded text-[10px] text-left transition-colors",
-                                 isSelected ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted text-muted-foreground"
-                               )}
-                             >
-                               <span className="truncate">{val}</span>
-                               {isSelected && <Check className="h-3 w-3 shrink-0" />}
-                             </button>
-                           );
-                         })}
-                       </div>
-                     </ScrollArea>
+                     <span className="text-[10px] text-muted-foreground mb-1 block">Frecuencia (top):</span>
+                     <ul className="space-y-1">
+                       {profile.topCategories.slice(0, 3).map((cat, i) => (
+                         <li key={i} className="flex justify-between text-[10px]">
+                           <span className="truncate max-w-[120px]">{cat.value}</span>
+                           <span className="font-mono bg-muted px-1 rounded">{cat.count}</span>
+                         </li>
+                       ))}
+                     </ul>
                    </div>
                 )}
               </CardContent>
@@ -127,6 +165,7 @@ export function InsightsPanel({ sheetData, selectedColumns, filteredValues, onFi
         <Button 
             onClick={() => setNarrative(generateNarrative())}
             className="gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-lg shadow-indigo-200 dark:shadow-none"
+            data-testid="button-generate-narrative"
         >
             <Wand2 className="w-4 h-4" />
             Generar Resumen Narrativo
@@ -136,7 +175,7 @@ export function InsightsPanel({ sheetData, selectedColumns, filteredValues, onFi
       {narrative && (
         <Card className="bg-indigo-50 border-indigo-100 dark:bg-indigo-950/20 dark:border-indigo-900">
             <CardContent className="pt-6">
-                <p className="text-indigo-900 dark:text-indigo-100 leading-relaxed text-sm">
+                <p className="text-indigo-900 dark:text-indigo-100 leading-relaxed text-sm" data-testid="text-narrative">
                     {narrative}
                 </p>
             </CardContent>

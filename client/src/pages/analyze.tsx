@@ -165,6 +165,7 @@ export default function Analyze() {
                         <div className="w-full xl:w-[400px] shrink-0">
                             <InsightsPanel 
                                 sheetData={displayData} 
+                                sourceData={activeProject.sheetData}
                                 selectedColumns={selectedColumns} 
                                 filteredValues={filteredValues}
                                 onFilterChange={handleFilterChange}

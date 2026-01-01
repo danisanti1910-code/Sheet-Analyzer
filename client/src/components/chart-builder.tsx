@@ -67,7 +67,11 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
 
   useEffect(() => {
     if (initialConfig) return;
-    if (selectedColumns.length === 0) return;
+    if (selectedColumns.length === 0) {
+      setXAxis('');
+      setYAxis([]);
+      return;
+    }
 
     const numerics = selectedColumns.filter(c => data.columnProfiles[c]?.type === 'numeric');
     const categoricals = selectedColumns.filter(c => data.columnProfiles[c]?.type === 'categorical' || data.columnProfiles[c]?.type === 'boolean');
@@ -89,12 +93,14 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
         setChartType('bar');
         setXAxis(categoricals[0]);
         setYAxis([]);
+        setAggregation('count');
     } else if (numerics.length === 1) {
         setChartType('bar');
         setXAxis(numerics[0]);
         setYAxis([]);
+        setAggregation('count');
     }
-  }, [selectedColumns, data, initialConfig]);
+  }, [selectedColumns, data.columnProfiles, initialConfig]);
 
   const processedData = useMemo(() => {
     if (!data.rows || data.rows.length === 0) return [];
