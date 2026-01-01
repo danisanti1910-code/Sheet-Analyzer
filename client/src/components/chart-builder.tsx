@@ -213,108 +213,107 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
 
   return (
     <Card className="h-full flex flex-col shadow-sm border bg-card overflow-hidden">
-        <CardHeader className="pb-4 border-b px-4 py-3">
-          <div className="flex items-center justify-between gap-4">
-            <Dialog open={isAddingToDashboard} onOpenChange={setIsAddingToDashboard}>
-              <DialogTrigger asChild>
-                <Button variant="primary" size="sm" className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
-                  <LayoutDashboard className="w-4 h-4" /> {hideControls ? 'Editar configuración' : 'Agregar al dashboard'}
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle>Nuevo gráfico</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="title">Título</Label>
-                    <Input id="title" value={chartTitle} onChange={(e) => setChartTitle(e.target.value)} placeholder="Ej: Ventas por categoría" />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Tipo de gráfico</Label>
-                    <Select value={chartType} onValueChange={(v: any) => setChartType(v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="bar">Columnas</SelectItem>
-                        <SelectItem value="line">Líneas</SelectItem>
-                        <SelectItem value="area">Área</SelectItem>
-                        <SelectItem value="pie">Circular</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Eje X / Categoría</Label>
-                    <Select value={xAxis} onValueChange={setXAxis}>
-                      <SelectTrigger><SelectValue placeholder="Seleccionar columna" /></SelectTrigger>
-                      <SelectContent>
-                        {data.columns.map(c => <SelectItem key={c} value={c}>{data.columnProfiles[c]?.name || c}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Eje Y / Valor (opcional)</Label>
-                    <Select value={yAxis[0] || 'none'} onValueChange={(v) => setYAxis(v === 'none' ? [] : [v])}>
-                      <SelectTrigger><SelectValue placeholder="Seleccionar columna numérica" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Ninguno (conteo)</SelectItem>
-                        {data.columns.filter(c => data.columnProfiles[c]?.type === 'numeric').map(c => (
-                          <SelectItem key={c} value={c}>{data.columnProfiles[c]?.name || c}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Agregación</Label>
-                    <Select value={aggregation} onValueChange={(v: any) => setAggregation(v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Sin agregación</SelectItem>
-                        <SelectItem value="sum">Suma</SelectItem>
-                        <SelectItem value="avg">Promedio</SelectItem>
-                        <SelectItem value="count">Recuento</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+      <CardHeader className="pb-4 border-b px-4 py-3">
+        <div className="flex items-center justify-between gap-4">
+          <Dialog open={isAddingToDashboard} onOpenChange={setIsAddingToDashboard}>
+            <DialogTrigger asChild>
+              <Button variant="primary" size="sm" className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
+                <LayoutDashboard className="w-4 h-4" /> {hideControls ? 'Editar configuración' : 'Agregar al dashboard'}
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Nuevo gráfico</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="title">Título</Label>
+                  <Input id="title" value={chartTitle} onChange={(e) => setChartTitle(e.target.value)} placeholder="Ej: Ventas por categoría" />
                 </div>
-                <DialogFooter>
-                  <Button onClick={handleSaveToDashboard} className="w-full">Agregar al dashboard</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+                <div className="grid gap-2">
+                  <Label>Tipo de gráfico</Label>
+                  <Select value={chartType} onValueChange={(v: any) => setChartType(v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="bar">Columnas</SelectItem>
+                      <SelectItem value="line">Líneas</SelectItem>
+                      <SelectItem value="area">Área</SelectItem>
+                      <SelectItem value="pie">Circular</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Eje X / Categoría</Label>
+                  <Select value={xAxis} onValueChange={setXAxis}>
+                    <SelectTrigger><SelectValue placeholder="Seleccionar columna" /></SelectTrigger>
+                    <SelectContent>
+                      {data.columns.map(c => <SelectItem key={c} value={c}>{data.columnProfiles[c]?.name || c}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Eje Y / Valor (opcional)</Label>
+                  <Select value={yAxis[0] || 'none'} onValueChange={(v) => setYAxis(v === 'none' ? [] : [v])}>
+                    <SelectTrigger><SelectValue placeholder="Seleccionar columna numérica" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Ninguno (conteo)</SelectItem>
+                      {data.columns.filter(c => data.columnProfiles[c]?.type === 'numeric').map(c => (
+                        <SelectItem key={c} value={c}>{data.columnProfiles[c]?.name || c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Agregación</Label>
+                  <Select value={aggregation} onValueChange={(v: any) => setAggregation(v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin agregación</SelectItem>
+                      <SelectItem value="sum">Suma</SelectItem>
+                      <SelectItem value="avg">Promedio</SelectItem>
+                      <SelectItem value="count">Recuento</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button onClick={handleSaveToDashboard} className="w-full">Agregar al dashboard</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
-            <div className="flex items-center gap-2">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="icon" className="h-8 w-8"><Palette className="w-4 h-4" /></Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-40 p-2">
-                  <div className="space-y-1">
-                    {Object.keys(COLOR_SCHEMES).map((scheme) => (
-                      <button
-                        key={scheme}
-                        onClick={() => setActiveColorScheme(scheme as any)}
-                        className={`w-full text-left px-2 py-1 text-xs rounded hover:bg-muted flex items-center gap-2 ${activeColorScheme === scheme ? 'bg-muted font-bold' : ''}`}
-                      >
-                        <div className="flex gap-0.5">
-                          {COLOR_SCHEMES[scheme as keyof typeof COLOR_SCHEMES].slice(0, 3).map((c, i) => (
-                            <div key={i} className="w-2 h-2 rounded-full" style={{ backgroundColor: c }} />
-                          ))}
-                        </div>
-                        <span className="capitalize">{scheme}</span>
-                      </button>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => {
-                if (chartRef.current) {
-                  htmlToImage.toPng(chartRef.current).then(url => download(url, 'grafico.png'));
-                }
-              }}><Download className="w-4 h-4" /></Button>
-            </div>
+          <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="icon" className="h-8 w-8"><Palette className="w-4 h-4" /></Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-40 p-2">
+                <div className="space-y-1">
+                  {Object.keys(COLOR_SCHEMES).map((scheme) => (
+                    <button
+                      key={scheme}
+                      onClick={() => setActiveColorScheme(scheme as any)}
+                      className={`w-full text-left px-2 py-1 text-xs rounded hover:bg-muted flex items-center gap-2 ${activeColorScheme === scheme ? 'bg-muted font-bold' : ''}`}
+                    >
+                      <div className="flex gap-0.5">
+                        {COLOR_SCHEMES[scheme as keyof typeof COLOR_SCHEMES].slice(0, 3).map((c, i) => (
+                          <div key={i} className="w-2 h-2 rounded-full" style={{ backgroundColor: c }} />
+                        ))}
+                      </div>
+                      <span className="capitalize">{scheme}</span>
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => {
+              if (chartRef.current) {
+                htmlToImage.toPng(chartRef.current).then(url => download(url, 'grafico.png'));
+              }
+            }}><Download className="w-4 h-4" /></Button>
           </div>
-        </CardHeader>
-      )}
+        </div>
+      </CardHeader>
       <CardContent className="flex-1 min-h-[400px] p-6" ref={chartRef}>
         <ResponsiveContainer width="100%" height="100%">
           {renderChart()}
