@@ -108,7 +108,6 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
   const processedData = useMemo(() => {
     if (!data.rows || data.rows.length === 0 || !xAxis) return [];
 
-    // Case 1: No aggregation or explicit count without Y axis
     if (aggregation === 'none' || (aggregation === 'count' && yAxis.length === 0)) {
       if (yAxis.length === 0 || aggregation === 'count') {
         const groups: Record<string, any> = {};
@@ -126,7 +125,6 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
       }).slice(0, 1000);
     }
 
-    // Case 2: Aggregation (sum, avg, count with Y axis)
     const groups: Record<string, any> = {};
     const effectiveYAxis = yAxis.length > 0 ? yAxis : ['count'];
 
@@ -169,7 +167,7 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
       name: chartTitle || `Gráfico de ${xAxis}`,
       chartType,
       xAxis,
-      yAxis: yAxis.length > 0 ? yAxis : (aggregation === 'count' ? ['count'] : ['count']),
+      yAxis: yAxis.length > 0 ? yAxis : ['count'],
       selectedColumns,
       colorScheme: colors
     });
@@ -190,68 +188,76 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
 
     let plotKeys = yAxis.length > 0 ? yAxis : (processedData[0]?.count !== undefined ? ['count'] : ['value']);
     if (plotKeys.every(k => processedData[0][k] === undefined)) {
-        plotKeys = ['count'];
+        plotKeys = processedData[0]?.value !== undefined ? ['value'] : ['count'];
     }
 
     switch (chartType) {
       case 'bar':
         return (
-          <BarChart {...commonProps}>
-            <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-            <XAxis dataKey={xAxis} tick={{fontSize: 10}} />
-            <YAxis tick={{fontSize: 10}} />
-            <Tooltip />
-            <Legend />
-            {plotKeys.map((y, i) => (
-              <Bar key={y} dataKey={y} fill={colors[i % colors.length]} radius={[4, 4, 0, 0]} />
-            ))}
-          </BarChart>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart {...commonProps}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+              <XAxis dataKey={xAxis} tick={{fontSize: 10}} />
+              <YAxis tick={{fontSize: 10}} />
+              <Tooltip />
+              <Legend />
+              {plotKeys.map((y, i) => (
+                <Bar key={y} dataKey={y} fill={colors[i % colors.length]} radius={[4, 4, 0, 0]} />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
         );
       case 'line':
         return (
-          <LineChart {...commonProps}>
-            <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-            <XAxis dataKey={xAxis} tick={{fontSize: 10}} />
-            <YAxis tick={{fontSize: 10}} />
-            <Tooltip />
-            <Legend />
-            {plotKeys.map((y, i) => (
-              <Line key={y} type="monotone" dataKey={y} stroke={colors[i % colors.length]} strokeWidth={2} dot={processedData.length < 50} />
-            ))}
-          </LineChart>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart {...commonProps}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+              <XAxis dataKey={xAxis} tick={{fontSize: 10}} />
+              <YAxis tick={{fontSize: 10}} />
+              <Tooltip />
+              <Legend />
+              {plotKeys.map((y, i) => (
+                <Line key={y} type="monotone" dataKey={y} stroke={colors[i % colors.length]} strokeWidth={2} dot={processedData.length < 50} />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
         );
       case 'area':
         return (
-          <AreaChart {...commonProps}>
-            <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-            <XAxis dataKey={xAxis} tick={{fontSize: 10}} />
-            <YAxis tick={{fontSize: 10}} />
-            <Tooltip />
-            <Legend />
-            {plotKeys.map((y, i) => (
-              <Area key={y} type="monotone" dataKey={y} fill={colors[i % colors.length]} stroke={colors[i % colors.length]} fillOpacity={0.3} />
-            ))}
-          </AreaChart>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart {...commonProps}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+              <XAxis dataKey={xAxis} tick={{fontSize: 10}} />
+              <YAxis tick={{fontSize: 10}} />
+              <Tooltip />
+              <Legend />
+              {plotKeys.map((y, i) => (
+                <Area key={y} type="monotone" dataKey={y} fill={colors[i % colors.length]} stroke={colors[i % colors.length]} fillOpacity={0.3} />
+              ))}
+            </AreaChart>
+          </ResponsiveContainer>
         );
       case 'pie':
         const pieKey = plotKeys[0];
         return (
-          <PieChart>
-            <Pie
-              data={processedData.slice(0, 10)}
-              cx="50%" cy="50%"
-              innerRadius={60} outerRadius={80}
-              paddingAngle={5}
-              dataKey={pieKey}
-              nameKey={xAxis}
-            >
-              {processedData.slice(0, 10).map((_, index) => (
-                <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-              ))}
-            </Pie>
-            <Tooltip />
-            <Legend />
-          </PieChart>
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={processedData.slice(0, 10)}
+                cx="50%" cy="50%"
+                innerRadius={60} outerRadius={80}
+                paddingAngle={5}
+                dataKey={pieKey}
+                nameKey={xAxis}
+              >
+                {processedData.slice(0, 10).map((_, index) => (
+                  <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
         );
       default:
         return <div className="flex items-center justify-center h-full">Tipo de gráfico no soportado</div>;
