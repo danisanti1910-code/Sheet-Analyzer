@@ -213,13 +213,12 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
 
   return (
     <Card className="h-full flex flex-col shadow-sm border bg-card overflow-hidden">
-      {!hideControls && (
         <CardHeader className="pb-4 border-b px-4 py-3">
           <div className="flex items-center justify-between gap-4">
             <Dialog open={isAddingToDashboard} onOpenChange={setIsAddingToDashboard}>
               <DialogTrigger asChild>
                 <Button variant="primary" size="sm" className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
-                  <LayoutDashboard className="w-4 h-4" /> Agregar al dashboard
+                  <LayoutDashboard className="w-4 h-4" /> {hideControls ? 'Editar configuración' : 'Agregar al dashboard'}
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">

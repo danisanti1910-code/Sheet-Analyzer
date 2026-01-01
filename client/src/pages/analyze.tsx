@@ -163,7 +163,12 @@ export default function Analyze() {
                             <ChartBuilder data={displayData} selectedColumns={selectedColumns} />
                         </div>
                         <div className="w-full xl:w-[400px] shrink-0">
-                            <InsightsPanel sheetData={displayData} selectedColumns={selectedColumns} />
+                            <InsightsPanel 
+                                sheetData={displayData} 
+                                selectedColumns={selectedColumns} 
+                                filteredValues={filteredValues}
+                                onFilterChange={handleFilterChange}
+                            />
                         </div>
                      </div>
                   </TabsContent>

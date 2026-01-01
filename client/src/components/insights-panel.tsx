@@ -3,15 +3,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Wand2 } from 'lucide-react';
+import { Wand2, Check } from 'lucide-react';
 import React from 'react';
+import { cn } from '@/lib/utils';
 
 interface InsightsPanelProps {
   sheetData: SheetData;
   selectedColumns: string[];
+  filteredValues: Record<string, string[]>;
+  onFilterChange: (col: string, values: string[]) => void;
 }
 
-export function InsightsPanel({ sheetData, selectedColumns }: InsightsPanelProps) {
+export function InsightsPanel({ sheetData, selectedColumns, filteredValues, onFilterChange }: InsightsPanelProps) {
   
   const generateNarrative = () => {
     const narratives: string[] = [];
@@ -49,6 +52,9 @@ export function InsightsPanel({ sheetData, selectedColumns }: InsightsPanelProps
           const profile = sheetData.columnProfiles[col];
           if (!profile) return null;
 
+          const uniqueValues = Array.from(new Set(sheetData.rows.map(r => String(r[col])))).sort();
+          const selectedFilters = filteredValues[col] || uniqueValues;
+
           return (
             <Card key={col} className="overflow-hidden border-l-4 border-l-primary shadow-sm hover:shadow-md transition-shadow xl:w-[280px] shrink-0">
               <CardHeader className="pb-2 bg-muted/10">
@@ -81,17 +87,34 @@ export function InsightsPanel({ sheetData, selectedColumns }: InsightsPanelProps
                   </>
                 )}
 
-                {(profile.type === 'categorical' || profile.type === 'boolean') && profile.topCategories && (
+                {(profile.type === 'categorical' || profile.type === 'boolean') && (
                    <div className="border-t pt-2 mt-2">
-                     <span className="text-[10px] text-muted-foreground mb-1 block">Top Categorías:</span>
-                     <ul className="space-y-1">
-                       {profile.topCategories.slice(0, 3).map((cat, i) => (
-                         <li key={i} className="flex justify-between text-[10px]">
-                           <span className="truncate max-w-[120px]">{cat.value}</span>
-                           <span className="font-mono bg-muted px-1 rounded">{cat.count}</span>
-                         </li>
-                       ))}
-                     </ul>
+                     <span className="text-[10px] text-muted-foreground mb-1 block">Filtrar por valor:</span>
+                     <ScrollArea className="h-24 pr-2">
+                       <div className="space-y-1">
+                         {uniqueValues.map((val) => {
+                           const isSelected = selectedFilters.includes(val);
+                           return (
+                             <button
+                               key={val}
+                               onClick={() => {
+                                 const newFilters = isSelected 
+                                   ? selectedFilters.filter(v => v !== val)
+                                   : [...selectedFilters, val];
+                                 onFilterChange(col, newFilters);
+                               }}
+                               className={cn(
+                                 "w-full flex items-center justify-between p-1.5 rounded text-[10px] text-left transition-colors",
+                                 isSelected ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted text-muted-foreground"
+                               )}
+                             >
+                               <span className="truncate">{val}</span>
+                               {isSelected && <Check className="h-3 w-3 shrink-0" />}
+                             </button>
+                           );
+                         })}
+                       </div>
+                     </ScrollArea>
                    </div>
                 )}
               </CardContent>
