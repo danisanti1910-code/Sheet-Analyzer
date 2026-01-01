@@ -13,7 +13,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download, Share2, Palette, LayoutDashboard, Plus } from 'lucide-react';
+import { Download, Palette, LayoutDashboard } from 'lucide-react';
 import * as htmlToImage from 'html-to-image';
 import download from 'downloadjs';
 import { useToast } from '@/hooks/use-toast';
@@ -81,14 +81,17 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
       setChartType('line');
       setXAxis(datetimes[0]);
       setYAxis([numerics[0]]);
+      setAggregation('none');
     } else if (categoricals.length > 0 && numerics.length > 0) {
       setChartType('bar');
       setXAxis(categoricals[0]);
       setYAxis([numerics[0]]);
+      setAggregation('sum');
     } else if (numerics.length >= 2) {
       setChartType('scatter');
       setXAxis(numerics[0]);
       setYAxis([numerics[1]]);
+      setAggregation('none');
     } else if (categoricals.length > 0) {
         setChartType('bar');
         setXAxis(categoricals[0]);
@@ -97,30 +100,47 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
     } else if (numerics.length === 1) {
         setChartType('bar');
         setXAxis(numerics[0]);
-        setYAxis([]);
-        setAggregation('count');
+        setYAxis([numerics[0]]);
+        setAggregation('none');
     }
   }, [selectedColumns, data.columnProfiles, initialConfig]);
 
   const processedData = useMemo(() => {
-    if (!data.rows || data.rows.length === 0) return [];
-    
-    if (aggregation === 'none' || !xAxis || yAxis.length === 0) {
-      return data.rows.slice(0, 1000);
+    if (!data.rows || data.rows.length === 0 || !xAxis) return [];
+
+    // Case 1: No aggregation or explicit count without Y axis
+    if (aggregation === 'none' || (aggregation === 'count' && yAxis.length === 0)) {
+      if (yAxis.length === 0 || aggregation === 'count') {
+        const groups: Record<string, any> = {};
+        data.rows.forEach(row => {
+          const key = String(row[xAxis]);
+          if (!groups[key]) groups[key] = { [xAxis]: key, count: 0 };
+          groups[key].count++;
+        });
+        return Object.values(groups).sort((a, b) => b.count - a.count).slice(0, 1000);
+      }
+      return data.rows.map(row => {
+        const item: any = { [xAxis]: row[xAxis] };
+        yAxis.forEach(y => { item[y] = row[y]; });
+        return item;
+      }).slice(0, 1000);
     }
 
+    // Case 2: Aggregation (sum, avg, count with Y axis)
     const groups: Record<string, any> = {};
+    const effectiveYAxis = yAxis.length > 0 ? yAxis : ['count'];
+
     data.rows.forEach(row => {
       const key = String(row[xAxis]);
       if (!groups[key]) {
         groups[key] = { [xAxis]: key };
-        yAxis.forEach(y => {
-          groups[key][y] = aggregation === 'count' ? 0 : [];
+        effectiveYAxis.forEach(y => {
+          groups[key][y] = (aggregation === 'count' || y === 'count') ? 0 : [];
         });
       }
       
-      yAxis.forEach(y => {
-        if (aggregation === 'count') {
+      effectiveYAxis.forEach(y => {
+        if (y === 'count' || aggregation === 'count') {
           groups[key][y]++;
         } else {
           const val = Number(row[y]);
@@ -131,11 +151,13 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
 
     return Object.values(groups).map(group => {
       const result = { ...group };
-      yAxis.forEach(y => {
-        if (aggregation === 'sum') {
-          result[y] = group[y].reduce((a: number, b: number) => a + b, 0);
-        } else if (aggregation === 'avg') {
-          result[y] = group[y].length ? group[y].reduce((a: number, b: number) => a + b, 0) / group[y].length : 0;
+      effectiveYAxis.forEach(y => {
+        if (Array.isArray(group[y])) {
+          if (aggregation === 'sum') {
+            result[y] = group[y].reduce((a: number, b: number) => a + b, 0);
+          } else if (aggregation === 'avg') {
+            result[y] = group[y].length ? group[y].reduce((a: number, b: number) => a + b, 0) / group[y].length : 0;
+          }
         }
       });
       return result;
@@ -147,7 +169,7 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
       name: chartTitle || `Gráfico de ${xAxis}`,
       chartType,
       xAxis,
-      yAxis,
+      yAxis: yAxis.length > 0 ? yAxis : (aggregation === 'count' ? ['count'] : ['count']),
       selectedColumns,
       colorScheme: colors
     });
@@ -166,6 +188,11 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
       margin: { top: 10, right: 30, left: 0, bottom: 0 }
     };
 
+    let plotKeys = yAxis.length > 0 ? yAxis : (processedData[0]?.count !== undefined ? ['count'] : ['value']);
+    if (plotKeys.every(k => processedData[0][k] === undefined)) {
+        plotKeys = ['count'];
+    }
+
     switch (chartType) {
       case 'bar':
         return (
@@ -175,7 +202,7 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
             <YAxis tick={{fontSize: 10}} />
             <Tooltip />
             <Legend />
-            {yAxis.map((y, i) => (
+            {plotKeys.map((y, i) => (
               <Bar key={y} dataKey={y} fill={colors[i % colors.length]} radius={[4, 4, 0, 0]} />
             ))}
           </BarChart>
@@ -188,12 +215,26 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
             <YAxis tick={{fontSize: 10}} />
             <Tooltip />
             <Legend />
-            {yAxis.map((y, i) => (
+            {plotKeys.map((y, i) => (
               <Line key={y} type="monotone" dataKey={y} stroke={colors[i % colors.length]} strokeWidth={2} dot={processedData.length < 50} />
             ))}
           </LineChart>
         );
+      case 'area':
+        return (
+          <AreaChart {...commonProps}>
+            <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+            <XAxis dataKey={xAxis} tick={{fontSize: 10}} />
+            <YAxis tick={{fontSize: 10}} />
+            <Tooltip />
+            <Legend />
+            {plotKeys.map((y, i) => (
+              <Area key={y} type="monotone" dataKey={y} fill={colors[i % colors.length]} stroke={colors[i % colors.length]} fillOpacity={0.3} />
+            ))}
+          </AreaChart>
+        );
       case 'pie':
+        const pieKey = plotKeys[0];
         return (
           <PieChart>
             <Pie
@@ -201,10 +242,10 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
               cx="50%" cy="50%"
               innerRadius={60} outerRadius={80}
               paddingAngle={5}
-              dataKey={yAxis[0] || 'value'}
+              dataKey={pieKey}
               nameKey={xAxis}
             >
-              {processedData.map((_, index) => (
+              {processedData.slice(0, 10).map((_, index) => (
                 <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
               ))}
             </Pie>
