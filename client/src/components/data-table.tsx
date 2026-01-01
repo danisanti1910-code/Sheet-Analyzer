@@ -96,12 +96,12 @@ export function DataTable({ data, selectedColumns = [] }: DataTableProps) {
                             </div>
                           ) : (
                             <>
-                              <span>{data.columnProfiles[col].name}</span>
+                              <span>{data.columnProfiles[col]?.name || col}</span>
                               <Button 
                                 variant="ghost" 
                                 size="icon" 
                                 className="h-6 w-6 opacity-0 group-hover:opacity-100" 
-                                onClick={() => { setEditingColumn(col); setTempColumnName(data.columnProfiles[col].name); }}
+                                onClick={() => { setEditingColumn(col); setTempColumnName(data.columnProfiles[col]?.name || col); }}
                               >
                                 <Edit2 className="h-3 w-3" />
                               </Button>

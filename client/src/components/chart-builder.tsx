@@ -191,77 +191,81 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
         plotKeys = processedData[0]?.value !== undefined ? ['value'] : ['count'];
     }
 
-    switch (chartType) {
-      case 'bar':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart {...commonProps}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-              <XAxis dataKey={xAxis} tick={{fontSize: 10}} />
-              <YAxis tick={{fontSize: 10}} />
-              <Tooltip />
-              <Legend />
-              {plotKeys.map((y, i) => (
-                <Bar key={y} dataKey={y} fill={colors[i % colors.length]} radius={[4, 4, 0, 0]} />
-              ))}
-            </BarChart>
-          </ResponsiveContainer>
-        );
-      case 'line':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart {...commonProps}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-              <XAxis dataKey={xAxis} tick={{fontSize: 10}} />
-              <YAxis tick={{fontSize: 10}} />
-              <Tooltip />
-              <Legend />
-              {plotKeys.map((y, i) => (
-                <Line key={y} type="monotone" dataKey={y} stroke={colors[i % colors.length]} strokeWidth={2} dot={processedData.length < 50} />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
-        );
-      case 'area':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart {...commonProps}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-              <XAxis dataKey={xAxis} tick={{fontSize: 10}} />
-              <YAxis tick={{fontSize: 10}} />
-              <Tooltip />
-              <Legend />
-              {plotKeys.map((y, i) => (
-                <Area key={y} type="monotone" dataKey={y} fill={colors[i % colors.length]} stroke={colors[i % colors.length]} fillOpacity={0.3} />
-              ))}
-            </AreaChart>
-          </ResponsiveContainer>
-        );
-      case 'pie':
-        const pieKey = plotKeys[0];
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={processedData.slice(0, 10)}
-                cx="50%" cy="50%"
-                innerRadius={60} outerRadius={80}
-                paddingAngle={5}
-                dataKey={pieKey}
-                nameKey={xAxis}
-              >
-                {processedData.slice(0, 10).map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+    const renderChartByType = () => {
+      const pieKey = plotKeys[0];
+      switch (chartType) {
+        case 'bar':
+          return (
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart {...commonProps}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                <XAxis dataKey={xAxis} tick={{fontSize: 10}} />
+                <YAxis tick={{fontSize: 10}} />
+                <Tooltip />
+                <Legend />
+                {plotKeys.map((y, i) => (
+                  <Bar key={y} dataKey={y} fill={colors[i % colors.length]} radius={[4, 4, 0, 0]} />
                 ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        );
-      default:
-        return <div className="flex items-center justify-center h-full">Tipo de gráfico no soportado</div>;
-    }
+              </BarChart>
+            </ResponsiveContainer>
+          );
+        case 'line':
+          return (
+            <ResponsiveContainer width="100%" height={400}>
+              <LineChart {...commonProps}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                <XAxis dataKey={xAxis} tick={{fontSize: 10}} />
+                <YAxis tick={{fontSize: 10}} />
+                <Tooltip />
+                <Legend />
+                {plotKeys.map((y, i) => (
+                  <Line key={y} type="monotone" dataKey={y} stroke={colors[i % colors.length]} strokeWidth={2} dot={processedData.length < 50} />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          );
+        case 'area':
+          return (
+            <ResponsiveContainer width="100%" height={400}>
+              <AreaChart {...commonProps}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                <XAxis dataKey={xAxis} tick={{fontSize: 10}} />
+                <YAxis tick={{fontSize: 10}} />
+                <Tooltip />
+                <Legend />
+                {plotKeys.map((y, i) => (
+                  <Area key={y} type="monotone" dataKey={y} fill={colors[i % colors.length]} stroke={colors[i % colors.length]} fillOpacity={0.3} />
+                ))}
+              </AreaChart>
+            </ResponsiveContainer>
+          );
+        case 'pie':
+          return (
+            <ResponsiveContainer width="100%" height={400}>
+              <PieChart>
+                <Pie
+                  data={processedData.slice(0, 10)}
+                  cx="50%" cy="50%"
+                  innerRadius={60} outerRadius={80}
+                  paddingAngle={5}
+                  dataKey={pieKey}
+                  nameKey={xAxis}
+                >
+                  {processedData.slice(0, 10).map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          );
+        default:
+          return <div className="flex items-center justify-center h-full">Tipo de gráfico no soportado</div>;
+      }
+    };
+
+    return renderChartByType();
   };
 
   return (
@@ -368,9 +372,7 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
         </div>
       </CardHeader>
       <CardContent className="flex-1 min-h-[400px] p-6" ref={chartRef}>
-        <ResponsiveContainer width="100%" height="100%">
-          {renderChart()}
-        </ResponsiveContainer>
+        {renderChart()}
       </CardContent>
     </Card>
   );
