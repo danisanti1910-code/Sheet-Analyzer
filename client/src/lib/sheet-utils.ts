@@ -29,7 +29,8 @@ export interface SheetData {
 
 export const parseSheet = async (file: File, headerMode: boolean = true): Promise<SheetData> => {
   const data = await file.arrayBuffer();
-  const workbook = read(data);
+  // Use codepage 65001 (UTF-8) for CSV files to handle Spanish characters
+  const workbook = read(data, { codepage: 65001 });
   const sheetName = workbook.SheetNames[0];
   return processSheet(workbook, sheetName, file.name, headerMode);
 };
