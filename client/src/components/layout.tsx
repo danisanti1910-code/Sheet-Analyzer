@@ -255,7 +255,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
           {activeProjectId && (
             <div className="px-3 mt-4 pt-4 border-t">
-              {!collapsed && <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 px-3">Proyecto Activo</p>}
+              {!collapsed && <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 px-3">{activeProject?.name || "Proyecto Activo"}</p>}
               <nav className="space-y-1">
                   <Link href="/analyze" className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${isActive('/analyze') ? 'bg-primary text-primary-foreground' : 'hover:bg-sidebar-accent'}`}>
                     <BarChart3 className="h-4 w-4" /> {!collapsed && <span>Análisis</span>}
@@ -268,7 +268,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           )}
 
           <div className="px-3 mt-4 pt-4 border-t">
-            {!collapsed && <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 px-3">Mis Gráficas</p>}
+            {!collapsed && <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 px-3">Gráficas del Proyecto</p>}
             <div className="space-y-1">
               {activeProject?.savedViews.map(view => (
                 <div key={view.id} className="group flex items-center gap-1">

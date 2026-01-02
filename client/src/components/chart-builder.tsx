@@ -61,7 +61,7 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
   );
   
   const chartRef = useRef<HTMLDivElement>(null);
-  const { saveView, activeProject } = useSheet();
+  const { saveView, activeProject, setLocation } = useSheet();
   const { toast } = useToast();
 
   const colors = COLOR_SCHEMES[activeColorScheme];
@@ -174,10 +174,15 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
       filteredValues: data.rows.length < (activeProject?.sheetData?.rows.length || 0) ? {} : undefined
     });
     setIsAddingToDashboard(false);
-    toast({
-      title: "Guardado en Dashboard",
-      description: "El gráfico se ha añadido a tu tablero con la configuración actual.",
-    });
+    
+    if (confirm('¿Te gustaría agregar esta gráfica a tu dashboard?')) {
+      setLocation('/dashboards');
+    } else {
+      toast({
+        title: "Guardado",
+        description: "El gráfico se ha añadido a las gráficas del proyecto.",
+      });
+    }
   };
 
   const renderChart = () => {
