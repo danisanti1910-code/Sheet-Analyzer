@@ -27,8 +27,15 @@ export function InsightsPanel({ sheetData, sourceData, selectedColumns, filtered
       if (!profile) return;
       
       if (profile.type === 'numeric') {
-        narratives.push(`La columna "${col}" tiene un promedio de ${profile.mean?.toFixed(2)} y una desviación estándar de ${profile.std?.toFixed(2)}. Los valores oscilan entre ${profile.min} y ${profile.max}.`);
-      } else if (profile.type === 'categorical') {
+      const formatNum = (num: number | undefined) => {
+        if (num === undefined) return '-';
+        return new Intl.NumberFormat('en-US', {
+          maximumFractionDigits: 3,
+          minimumFractionDigits: 0
+        }).format(num);
+      };
+      narratives.push(`La columna "${col}" tiene un promedio de ${formatNum(profile.mean)} y una desviación estándar de ${formatNum(profile.std)}. Los valores oscilan entre ${formatNum(profile.min)} y ${formatNum(profile.max)}.`);
+    } else if (profile.type === 'categorical') {
         const top = profile.topCategories?.[0];
         narratives.push(`En "${col}", la categoría más común es "${top?.value}" con ${top?.count} apariciones.`);
       }
@@ -124,20 +131,33 @@ export function InsightsPanel({ sheetData, sourceData, selectedColumns, filtered
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Faltantes:</span>
                   <span className={profile.missingCount > 0 ? "text-amber-600 font-medium" : "text-green-600"}>
-                    {profile.missingCount} ({profile.missingPercentage.toFixed(1)}%)
+                    {new Intl.NumberFormat('en-US').format(profile.missingCount)} ({profile.missingPercentage.toFixed(1)}%)
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Únicos:</span>
-                  <span>{profile.uniqueCount}</span>
+                  <span>{new Intl.NumberFormat('en-US').format(profile.uniqueCount)}</span>
                 </div>
 
                 {profile.type === 'numeric' && (
                   <>
                     <div className="border-t pt-2 mt-2 space-y-1">
-                      <div className="flex justify-between"><span className="text-muted-foreground">Media:</span> <span>{profile.mean?.toFixed(2)}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">Mediana:</span> <span>{profile.median?.toFixed(2)}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">Min/Max:</span> <span>{profile.min} / {profile.max}</span></div>
+                      {(() => {
+                        const formatNum = (num: number | undefined) => {
+                          if (num === undefined) return '-';
+                          return new Intl.NumberFormat('en-US', {
+                            maximumFractionDigits: 3,
+                            minimumFractionDigits: 0
+                          }).format(num);
+                        };
+                        return (
+                          <>
+                            <div className="flex justify-between"><span className="text-muted-foreground">Media:</span> <span>{formatNum(profile.mean)}</span></div>
+                            <div className="flex justify-between"><span className="text-muted-foreground">Mediana:</span> <span>{formatNum(profile.median)}</span></div>
+                            <div className="flex justify-between"><span className="text-muted-foreground">Min/Max:</span> <span>{formatNum(profile.min)} / {formatNum(profile.max)}</span></div>
+                          </>
+                        );
+                      })()}
                     </div>
                   </>
                 )}
@@ -149,7 +169,7 @@ export function InsightsPanel({ sheetData, sourceData, selectedColumns, filtered
                        {profile.topCategories.slice(0, 3).map((cat, i) => (
                          <li key={i} className="flex justify-between text-[10px]">
                            <span className="truncate max-w-[120px]">{cat.value}</span>
-                           <span className="font-mono bg-muted px-1 rounded">{cat.count}</span>
+                           <span className="font-mono bg-muted px-1 rounded">{new Intl.NumberFormat('en-US').format(cat.count)}</span>
                          </li>
                        ))}
                      </ul>

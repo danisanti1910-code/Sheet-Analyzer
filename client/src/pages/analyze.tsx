@@ -65,7 +65,48 @@ export default function Analyze() {
       }
     });
 
-    return { ...sourceData, rows, rowCount: rows.length };
+    // Re-profiling columns based on filtered data for relational statistics
+    const columns = sourceData.columns;
+    const profiles: any = {};
+    columns.forEach(col => {
+      const values = rows.map(r => r[col]);
+      const nonNullValues = values.filter(v => v !== null && v !== undefined && v !== '');
+      const missingCount = values.length - nonNullValues.length;
+      const type = sourceData.columnProfiles[col]?.type || 'unknown';
+      const uniqueValues = new Set(nonNullValues);
+      
+      let stats: any = {};
+      if (type === 'numeric' && nonNullValues.length > 0) {
+        const nums = nonNullValues.map(v => Number(v)).sort((a, b) => a - b);
+        const sum = nums.reduce((a, b) => a + b, 0);
+        stats.min = nums[0];
+        stats.max = nums[nums.length - 1];
+        stats.mean = sum / nums.length;
+        stats.median = nums[Math.floor(nums.length / 2)];
+        const variance = nums.reduce((a, b) => a + Math.pow(b - stats.mean, 2), 0) / nums.length;
+        stats.std = Math.sqrt(variance);
+      } else if ((type === 'categorical' || type === 'boolean') && nonNullValues.length > 0) {
+        const counts: Record<string, number> = {};
+        nonNullValues.forEach(v => {
+          const key = String(v);
+          counts[key] = (counts[key] || 0) + 1;
+        });
+        stats.topCategories = Object.entries(counts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([value, count]) => ({ value, count }));
+      }
+
+      profiles[col] = {
+        ...sourceData.columnProfiles[col],
+        missingCount,
+        missingPercentage: (missingCount / rows.length) * 100,
+        uniqueCount: uniqueValues.size,
+        ...stats
+      };
+    });
+
+    return { ...sourceData, rows, rowCount: rows.length, columnProfiles: profiles };
   }, [activeProject?.sheetData, filteredValues]);
 
   const duplicates = useMemo(() => {
