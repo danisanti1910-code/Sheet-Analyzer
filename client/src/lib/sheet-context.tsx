@@ -18,6 +18,7 @@ export interface Project {
   sheetData: SheetData | null;
   savedViews: SavedView[];
   sourceUrl?: string;
+  collaborators?: { email: string; role: 'viewer' | 'commenter' | 'editor' }[];
 }
 
 export interface User {

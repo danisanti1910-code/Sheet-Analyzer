@@ -7,20 +7,41 @@ import { InsightsPanel } from '@/components/insights-panel';
 import { DataTable } from '@/components/data-table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
-import { AlertCircle, RefreshCw, AlertTriangle, UserCheck, Trash2, Edit3 } from "lucide-react";
+import { AlertCircle, RefreshCw, AlertTriangle, UserCheck, Trash2, Edit3, Share2, UserPlus, Mail, Shield } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { Link, useLocation } from 'wouter';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { FileUpload } from '@/components/file-upload';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Analyze() {
   const { activeProject, updateProject, refreshProjectData, activeProjectId, user } = useSheet();
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
   const [filteredValues, setFilteredValues] = useState<Record<string, string[]>>({});
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempName, setTempName] = useState(activeProject?.name || "");
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [shareEmail, setShareEmail] = useState("");
+  const [shareRole, setShareRole] = useState<'viewer' | 'commenter' | 'editor'>('viewer');
+
+  const handleAddCollaborator = () => {
+    if (!shareEmail) return;
+    const currentCollaborators = activeProject?.collaborators || [];
+    if (currentCollaborators.some(c => c.email === shareEmail)) {
+        toast({ title: "El usuario ya es colaborador", variant: "destructive" });
+        return;
+    }
+    const updated = [...currentCollaborators, { email: shareEmail, role: shareRole }];
+    updateProject(activeProjectId!, { collaborators: updated });
+    setShareEmail("");
+    toast({ title: "Colaborador invitado", description: `Se ha invitado a ${shareEmail} como ${shareRole}.` });
+  };
 
   useEffect(() => {
     if (!user) {
@@ -37,8 +58,11 @@ export default function Analyze() {
     if (!sourceData) return null;
     let rows = sourceData.rows;
     
+    // Applying filters to all related columns
     Object.entries(filteredValues).forEach(([col, values]) => {
-      rows = rows.filter(r => values.includes(String(r[col])));
+      if (values && values.length > 0) {
+        rows = rows.filter(r => values.includes(String(r[col])));
+      }
     });
 
     return { ...sourceData, rows, rowCount: rows.length };
@@ -127,6 +151,74 @@ export default function Analyze() {
                 <RefreshCw className="h-3 w-3" /> Actualizar desde fuente
               </Button>
             )}
+
+            <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2 ml-2">
+                  <Share2 className="h-3.5 w-3.5" /> Compartir
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[460px]">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <UserPlus className="h-5 w-5 text-primary" />
+                    Compartir Proyecto
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-6 py-4">
+                  <div className="flex items-end gap-3">
+                    <div className="flex-1 space-y-2">
+                      <Label>Invitar por correo</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                          placeholder="ejemplo@correo.com" 
+                          className="pl-9"
+                          value={shareEmail}
+                          onChange={e => setShareEmail(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="w-[140px] space-y-2">
+                      <Label>Permisos</Label>
+                      <Select value={shareRole} onValueChange={(v: any) => setShareRole(v)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="viewer">Puede ver</SelectItem>
+                          <SelectItem value="commenter">Puede comentar</SelectItem>
+                          <SelectItem value="editor">Puede editar</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button onClick={handleAddCollaborator}>Invitar</Button>
+                  </div>
+
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-medium flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-muted-foreground" />
+                      Personas con acceso
+                    </h4>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-sm p-2 rounded-lg bg-muted/30 border">
+                        <div className="flex flex-col">
+                          <span className="font-medium">{user.firstName} {user.lastName} (Tú)</span>
+                          <span className="text-xs text-muted-foreground">{user.email}</span>
+                        </div>
+                        <span className="text-xs font-semibold uppercase text-primary bg-primary/10 px-2 py-0.5 rounded">Propietario</span>
+                      </div>
+                      {(activeProject.collaborators || []).map((collab, i) => (
+                        <div key={i} className="flex items-center justify-between text-sm p-2 rounded-lg border">
+                          <span className="text-muted-foreground">{collab.email}</span>
+                          <span className="text-xs text-muted-foreground capitalize">{collab.role}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
           
           {duplicates.length > ignoredDuplicates.size && (

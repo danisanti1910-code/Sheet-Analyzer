@@ -272,72 +272,28 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
     <Card className="h-full flex flex-col shadow-sm border bg-card overflow-hidden">
       <CardHeader className="pb-4 border-b px-4 py-3">
         <div className="flex items-center justify-between gap-4">
-          <Dialog open={isAddingToDashboard} onOpenChange={setIsAddingToDashboard}>
-            <DialogTrigger asChild>
-              <Button variant="primary" size="sm" className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
-                <LayoutDashboard className="w-4 h-4" /> {hideControls ? 'Editar configuración' : 'Agregar al dashboard'}
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Nuevo gráfico</DialogTitle>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="title">Título</Label>
-                  <Input id="title" value={chartTitle} onChange={(e) => setChartTitle(e.target.value)} placeholder="Ej: Ventas por categoría" />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Tipo de gráfico</Label>
-                  <Select value={chartType} onValueChange={(v: any) => setChartType(v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="bar">Columnas</SelectItem>
-                      <SelectItem value="line">Líneas</SelectItem>
-                      <SelectItem value="area">Área</SelectItem>
-                      <SelectItem value="pie">Circular</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label>Eje X / Categoría</Label>
-                  <Select value={xAxis} onValueChange={setXAxis}>
-                    <SelectTrigger><SelectValue placeholder="Seleccionar columna" /></SelectTrigger>
-                    <SelectContent>
-                      {data.columns.map(c => <SelectItem key={c} value={c}>{data.columnProfiles[c]?.name || c}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label>Eje Y / Valor (opcional)</Label>
-                  <Select value={yAxis[0] || 'none'} onValueChange={(v) => setYAxis(v === 'none' ? [] : [v])}>
-                    <SelectTrigger><SelectValue placeholder="Seleccionar columna numérica" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Ninguno (conteo)</SelectItem>
-                      {data.columns.filter(c => data.columnProfiles[c]?.type === 'numeric').map(c => (
-                        <SelectItem key={c} value={c}>{data.columnProfiles[c]?.name || c}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label>Agregación</Label>
-                  <Select value={aggregation} onValueChange={(v: any) => setAggregation(v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Sin agregación</SelectItem>
-                      <SelectItem value="sum">Suma</SelectItem>
-                      <SelectItem value="avg">Promedio</SelectItem>
-                      <SelectItem value="count">Recuento</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={handleSaveToDashboard} className="w-full">Agregar al dashboard</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <div className="flex items-center gap-3 mr-auto">
+            <Select value={chartType} onValueChange={(v: any) => setChartType(v)}>
+              <SelectTrigger className="h-8 w-[140px] text-xs">
+                <SelectValue placeholder="Tipo de gráfico" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="bar">Columnas</SelectItem>
+                <SelectItem value="line">Líneas</SelectItem>
+                <SelectItem value="area">Área</SelectItem>
+                <SelectItem value="pie">Circular</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button 
+              variant="primary" 
+              size="sm" 
+              className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-8 text-xs"
+              onClick={handleSaveToDashboard}
+            >
+              <LayoutDashboard className="w-3.5 h-3.5" /> Agregar al dashboard
+            </Button>
+          </div>
 
           <div className="flex items-center gap-2">
             <Popover>
