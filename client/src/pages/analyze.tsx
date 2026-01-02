@@ -60,7 +60,25 @@ export default function Analyze() {
     
     // Applying filters to all related columns
     Object.entries(filteredValues).forEach(([col, values]) => {
-      if (values && values.length > 0) {
+      if (!values || values.length === 0) return;
+
+      if (col.endsWith('_min')) {
+        const actualCol = col.replace('_min', '');
+        const type = sourceData.columnProfiles[actualCol]?.type;
+        if (type === 'numeric') {
+          rows = rows.filter(r => Number(r[actualCol]) >= Number(values[0]));
+        } else if (type === 'datetime') {
+          rows = rows.filter(r => new Date(r[actualCol]) >= new Date(values[0]));
+        }
+      } else if (col.endsWith('_max')) {
+        const actualCol = col.replace('_max', '');
+        const type = sourceData.columnProfiles[actualCol]?.type;
+        if (type === 'numeric') {
+          rows = rows.filter(r => Number(r[actualCol]) <= Number(values[0]));
+        } else if (type === 'datetime') {
+          rows = rows.filter(r => new Date(r[actualCol]) <= new Date(values[0]));
+        }
+      } else {
         rows = rows.filter(r => values.includes(String(r[col])));
       }
     });

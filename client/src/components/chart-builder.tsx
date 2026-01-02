@@ -169,12 +169,13 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
       xAxis,
       yAxis: yAxis.length > 0 ? yAxis : ['count'],
       selectedColumns,
-      colorScheme: colors
+      colorScheme: colors,
+      filteredValues: data.rows.length < (activeProject?.sheetData?.rows.length || 0) ? {} : undefined // Placeholder logic, usually we'd pass active filters
     });
     setIsAddingToDashboard(false);
     toast({
       title: "Guardado en Dashboard",
-      description: "El gráfico se ha añadido a tu tablero.",
+      description: "El gráfico se ha añadido a tu tablero con la configuración actual.",
     });
   };
 

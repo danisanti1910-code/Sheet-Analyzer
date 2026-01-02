@@ -9,6 +9,9 @@ import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+
 interface InsightsPanelProps {
   sheetData: SheetData;
   sourceData: SheetData;
@@ -76,51 +79,119 @@ export function InsightsPanel({ sheetData, sourceData, selectedColumns, filtered
                     <Badge variant="outline" className="text-[10px] uppercase tracking-wider w-fit mt-1">{profile.type}</Badge>
                   </div>
                   
-                  {(profile.type === 'categorical' || profile.type === 'boolean') && (
+                  {(profile.type === 'categorical' || profile.type === 'boolean' || profile.type === 'numeric' || profile.type === 'datetime') && (
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" data-testid={`button-filter-${col}`}>
                           <Filter className="h-3.5 w-3.5" />
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-56 p-2" align="end">
-                        <div className="space-y-2">
+                      <PopoverContent className="w-64 p-3" align="end">
+                        <div className="space-y-3">
                           <div className="flex items-center justify-between border-b pb-1">
                             <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Filtrar</span>
-                            <Button 
-                                variant="ghost" 
-                                className="h-6 text-[10px] px-2" 
-                                onClick={() => onFilterChange(col, allPossibleValues)}
-                                data-testid={`button-select-all-${col}`}
-                            >
-                                Todos
-                            </Button>
+                            {(profile.type === 'categorical' || profile.type === 'boolean') ? (
+                              <div className="flex gap-1">
+                                <Button 
+                                    variant="ghost" 
+                                    className="h-6 text-[10px] px-2" 
+                                    onClick={() => onFilterChange(col, allPossibleValues)}
+                                >
+                                    Todos
+                                </Button>
+                                <Button 
+                                    variant="ghost" 
+                                    className="h-6 text-[10px] px-2 text-destructive" 
+                                    onClick={() => onFilterChange(col, [])}
+                                >
+                                    Ninguno
+                                </Button>
+                              </div>
+                            ) : (
+                                <Button 
+                                    variant="ghost" 
+                                    className="h-6 text-[10px] px-2" 
+                                    onClick={() => onFilterChange(col, [])}
+                                >
+                                    Reset
+                                </Button>
+                            )}
                           </div>
-                          <ScrollArea className="h-48 pr-2">
-                            <div className="space-y-1">
-                              {allPossibleValues.map((val) => {
-                                const isSelected = selectedFilters.includes(val);
-                                return (
-                                  <div key={val} className="flex items-center gap-2 p-1.5 hover:bg-muted rounded text-[11px]">
-                                    <Checkbox 
-                                      id={`filter-${col}-${val}`}
-                                      checked={isSelected}
-                                      onCheckedChange={(checked) => {
-                                        const newFilters = checked 
-                                          ? [...selectedFilters, val]
-                                          : selectedFilters.filter(v => v !== val);
-                                        onFilterChange(col, newFilters);
-                                      }}
-                                      data-testid={`checkbox-filter-${col}-${val}`}
-                                    />
-                                    <label htmlFor={`filter-${col}-${val}`} className="truncate flex-1 cursor-pointer">
-                                      {val}
-                                    </label>
-                                  </div>
-                                );
-                              })}
+
+                          {profile.type === 'numeric' ? (
+                            <div className="space-y-3 pt-1">
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="space-y-1">
+                                  <Label className="text-[10px]">Min</Label>
+                                  <Input 
+                                    type="number" 
+                                    className="h-7 text-xs" 
+                                    placeholder={String(profile.min)}
+                                    value={filteredValues[`${col}_min`]?.[0] || ''}
+                                    onChange={(e) => onFilterChange(`${col}_min`, [e.target.value])}
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-[10px]">Max</Label>
+                                  <Input 
+                                    type="number" 
+                                    className="h-7 text-xs" 
+                                    placeholder={String(profile.max)}
+                                    value={filteredValues[`${col}_max`]?.[0] || ''}
+                                    onChange={(e) => onFilterChange(`${col}_max`, [e.target.value])}
+                                  />
+                                </div>
+                              </div>
                             </div>
-                          </ScrollArea>
+                          ) : profile.type === 'datetime' ? (
+                            <div className="space-y-3 pt-1">
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="space-y-1">
+                                  <Label className="text-[10px]">Desde</Label>
+                                  <Input 
+                                    type="date" 
+                                    className="h-7 text-xs" 
+                                    value={filteredValues[`${col}_min`]?.[0] || ''}
+                                    onChange={(e) => onFilterChange(`${col}_min`, [e.target.value])}
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-[10px]">Hasta</Label>
+                                  <Input 
+                                    type="date" 
+                                    className="h-7 text-xs" 
+                                    value={filteredValues[`${col}_max`]?.[0] || ''}
+                                    onChange={(e) => onFilterChange(`${col}_max`, [e.target.value])}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <ScrollArea className="h-48 pr-2">
+                              <div className="space-y-1">
+                                {allPossibleValues.map((val) => {
+                                  const isSelected = selectedFilters.includes(val);
+                                  return (
+                                    <div key={val} className="flex items-center gap-2 p-1.5 hover:bg-muted rounded text-[11px]">
+                                      <Checkbox 
+                                        id={`filter-${col}-${val}`}
+                                        checked={isSelected}
+                                        onCheckedChange={(checked) => {
+                                          const newFilters = checked 
+                                            ? [...selectedFilters, val]
+                                            : selectedFilters.filter(v => v !== val);
+                                          onFilterChange(col, newFilters);
+                                        }}
+                                      />
+                                      <label htmlFor={`filter-${col}-${val}`} className="truncate flex-1 cursor-pointer">
+                                        {val}
+                                      </label>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </ScrollArea>
+                          )}
                         </div>
                       </PopoverContent>
                     </Popover>
