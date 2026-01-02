@@ -30,6 +30,17 @@ export default function Analyze() {
   const [shareEmail, setShareEmail] = useState("");
   const [shareRole, setShareRole] = useState<'viewer' | 'commenter' | 'editor'>('viewer');
 
+  const handleSelectView = (view: any) => {
+    setSelectedColumns(view.selectedColumns);
+    if (view.filteredValues) {
+      setFilteredValues(view.filteredValues);
+    }
+    toast({
+      title: `Vista cargada: ${view.name}`,
+      description: "Se han restaurado las variables y configuraciones de esta gráfica.",
+    });
+  };
+
   const handleAddCollaborator = () => {
     if (!shareEmail) return;
     const currentCollaborators = activeProject?.collaborators || [];
@@ -296,6 +307,7 @@ export default function Analyze() {
               onSelectionChange={setSelectedColumns}
               filteredValues={filteredValues}
               onFilterChange={handleFilterChange}
+              onSelectView={handleSelectView}
             />
           </ResizablePanel>
           <ResizableHandle />
@@ -304,7 +316,6 @@ export default function Analyze() {
                 <Tabs defaultValue="visualize" className="space-y-4">
                   <TabsList>
                     <TabsTrigger value="visualize">Análisis</TabsTrigger>
-                    <TabsTrigger value="saved">Gráficos Guardados ({activeProject.savedViews.length})</TabsTrigger>
                     <TabsTrigger value="data">Vista Previa</TabsTrigger>
                     <TabsTrigger value="duplicates">Limpieza ({duplicates.length})</TabsTrigger>
                   </TabsList>
@@ -324,63 +335,6 @@ export default function Analyze() {
                             />
                         </div>
                      </div>
-                  </TabsContent>
-
-                  <TabsContent value="saved" className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {activeProject.savedViews.length > 0 ? (
-                        activeProject.savedViews.map((view) => (
-                          <Card key={view.id} className="relative group overflow-hidden border-2 hover:border-primary/50 transition-all">
-                            <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                              <Button 
-                                variant="destructive" 
-                                size="icon" 
-                                className="h-8 w-8" 
-                                onClick={() => {
-                                  const confirmDelete = confirm("¿Estás seguro de que deseas eliminar este gráfico definitivamente?");
-                                  if (confirmDelete) {
-                                    const { deleteView } = useSheet();
-                                    deleteView(view.id);
-                                  }
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                            <CardContent className="p-0">
-                              <div className="h-[400px]">
-                                <ChartBuilder 
-                                  data={activeProject.sheetData!} 
-                                  selectedColumns={view.selectedColumns}
-                                  initialConfig={{
-                                    chartType: view.chartType,
-                                    xAxis: view.xAxis,
-                                    yAxis: view.yAxis,
-                                    colorScheme: view.colorScheme,
-                                    title: view.name
-                                  }}
-                                  hideControls={true}
-                                />
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))
-                      ) : (
-                        <div className="col-span-full py-20 text-center border-2 border-dashed rounded-xl bg-muted/20">
-                          <p className="text-muted-foreground">Aún no has guardado ninguna gráfica en este proyecto.</p>
-                          <Button 
-                            variant="link" 
-                            onClick={() => {
-                              const tabs = document.querySelector('[role="tablist"]');
-                              const visualizeTab = tabs?.querySelector('[value="visualize"]') as HTMLButtonElement;
-                              visualizeTab?.click();
-                            }}
-                          >
-                            Crea tu primera gráfica aquí
-                          </Button>
-                        </div>
-                      )}
-                    </div>
                   </TabsContent>
 
                   <TabsContent value="data">

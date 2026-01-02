@@ -289,10 +289,10 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
             <Button 
               variant="primary" 
               size="sm" 
-              className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-8 text-xs"
+              className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-8 text-xs px-3 shadow-sm border border-primary/20"
               onClick={handleSaveToDashboard}
             >
-              <LayoutDashboard className="w-3.5 h-3.5" /> Agregar al dashboard
+              <LayoutDashboard className="w-3.5 h-3.5" /> Guardar Gráfica
             </Button>
           </div>
 

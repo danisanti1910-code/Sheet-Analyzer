@@ -2,11 +2,12 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Hash, Calendar, Type, ToggleLeft, Filter } from "lucide-react";
+import { Search, Hash, Calendar, Type, ToggleLeft, Filter, BarChart3, Trash2 } from "lucide-react";
 import { SheetData } from "@/lib/sheet-utils";
 import React from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
+import { useSheet } from "@/lib/sheet-context";
 
 interface ColumnSidebarProps {
   data: SheetData;
@@ -14,10 +15,12 @@ interface ColumnSidebarProps {
   onSelectionChange: (cols: string[]) => void;
   filteredValues: Record<string, string[]>;
   onFilterChange: (col: string, values: string[]) => void;
+  onSelectView?: (view: any) => void;
 }
 
-export function ColumnSidebar({ data, selectedColumns, onSelectionChange, filteredValues, onFilterChange }: ColumnSidebarProps) {
+export function ColumnSidebar({ data, selectedColumns, onSelectionChange, filteredValues, onFilterChange, onSelectView }: ColumnSidebarProps) {
   const [searchTerm, setSearchTerm] = React.useState("");
+  const { activeProject, deleteView } = useSheet();
 
   const filteredColumns = data.columns.filter(col => 
     col.toLowerCase().includes(searchTerm.toLowerCase())
@@ -66,78 +69,119 @@ export function ColumnSidebar({ data, selectedColumns, onSelectionChange, filter
           />
         </div>
       </div>
-      <ScrollArea className="flex-1 p-2">
-        <div className="space-y-1">
-          {filteredColumns.map((col) => {
-            const profile = data.columnProfiles[col];
-            const isSelected = selectedColumns.includes(col);
-            const uniqueValues = Array.from(new Set(data.rows.map(r => String(r[col])))).sort();
-            const selectedFilters = filteredValues[col] || uniqueValues;
+      <div className="flex-1 overflow-hidden flex flex-col">
+        <ScrollArea className="flex-1 p-2">
+          <div className="space-y-1">
+            {filteredColumns.map((col) => {
+              const profile = data.columnProfiles[col];
+              const isSelected = selectedColumns.includes(col);
+              const uniqueValues = Array.from(new Set(data.rows.map(r => String(r[col])))).sort();
+              const selectedFilters = filteredValues[col] || uniqueValues;
 
-            return (
-              <div 
-                key={col}
-                className={`
-                  flex items-start space-x-3 p-2 rounded-md transition-colors group
-                  ${isSelected ? 'bg-accent' : 'hover:bg-sidebar-accent/50'}
-                `}
-              >
-                <Checkbox 
-                  checked={isSelected} 
-                  onCheckedChange={() => toggleColumn(col)}
-                  className="mt-1"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-sm font-medium truncate cursor-pointer" onClick={() => toggleColumn(col)}>{col}</span>
-                    <div className="flex items-center gap-1 shrink-0">
-                      {isSelected && profile.type !== 'numeric' && (
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-5 w-5 opacity-0 group-hover:opacity-100">
-                              <Filter className="h-3 w-3" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-56 p-2" align="start">
-                            <div className="space-y-2">
-                              <p className="text-xs font-bold px-1 uppercase tracking-wider text-muted-foreground">Filtrar valores</p>
-                              <ScrollArea className="h-48 pr-3">
-                                <div className="space-y-1">
-                                  {uniqueValues.map(val => (
-                                    <div key={val} className="flex items-center gap-2 p-1 hover:bg-muted rounded text-xs">
-                                      <Checkbox 
-                                        checked={selectedFilters.includes(val)}
-                                        onCheckedChange={(checked) => {
-                                          const newFilters = checked 
-                                            ? [...selectedFilters, val]
-                                            : selectedFilters.filter(v => v !== val);
-                                          onFilterChange(col, newFilters);
-                                        }}
-                                      />
-                                      <span className="truncate">{val}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </ScrollArea>
-                            </div>
-                          </PopoverContent>
-                        </Popover>
-                      )}
-                      <Badge variant="secondary" className={`h-4 px-1 text-[9px] gap-0.5 ${getTypeColor(profile.type)}`}>
-                        {getIcon(profile.type)}
-                        {profile.type.substring(0, 3)}
-                      </Badge>
+              return (
+                <div 
+                  key={col}
+                  className={`
+                    flex items-start space-x-3 p-2 rounded-md transition-colors group
+                    ${isSelected ? 'bg-accent' : 'hover:bg-sidebar-accent/50'}
+                  `}
+                >
+                  <Checkbox 
+                    checked={isSelected} 
+                    onCheckedChange={() => toggleColumn(col)}
+                    className="mt-1"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-sm font-medium truncate cursor-pointer" onClick={() => toggleColumn(col)}>{col}</span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {isSelected && profile.type !== 'numeric' && (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-5 w-5 opacity-0 group-hover:opacity-100">
+                                <Filter className="h-3 w-3" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-56 p-2" align="start">
+                              <div className="space-y-2">
+                                <p className="text-xs font-bold px-1 uppercase tracking-wider text-muted-foreground">Filtrar valores</p>
+                                <ScrollArea className="h-48 pr-3">
+                                  <div className="space-y-1">
+                                    {uniqueValues.map(val => (
+                                      <div key={val} className="flex items-center gap-2 p-1 hover:bg-muted rounded text-xs">
+                                        <Checkbox 
+                                          checked={selectedFilters.includes(val)}
+                                          onCheckedChange={(checked) => {
+                                            const newFilters = checked 
+                                              ? [...selectedFilters, val]
+                                              : selectedFilters.filter(v => v !== val);
+                                            onFilterChange(col, newFilters);
+                                          }}
+                                        />
+                                        <span className="truncate">{val}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </ScrollArea>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        )}
+                        <Badge variant="secondary" className={`h-4 px-1 text-[9px] gap-0.5 ${getTypeColor(profile.type)}`}>
+                          {getIcon(profile.type)}
+                          {profile.type.substring(0, 3)}
+                        </Badge>
+                      </div>
                     </div>
+                    <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                      {profile.uniqueCount} datos únicos detectados
+                    </p>
                   </div>
-                  <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-                    {profile.uniqueCount} datos únicos detectados
-                  </p>
                 </div>
+              );
+            })}
+          </div>
+        </ScrollArea>
+
+        {activeProject && activeProject.savedViews.length > 0 && (
+          <div className="border-t p-4 space-y-3 bg-muted/20">
+            <h2 className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+              Mis Gráficas
+            </h2>
+            <ScrollArea className="h-[200px]">
+              <div className="space-y-1">
+                {activeProject.savedViews.map(view => (
+                  <div 
+                    key={view.id}
+                    className="flex items-center gap-2 group"
+                  >
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="flex-1 justify-start gap-2 h-8 text-[11px] font-normal overflow-hidden px-2 hover:bg-primary/5"
+                      onClick={() => onSelectView?.(view)}
+                    >
+                      <BarChart3 className="h-3.5 w-3.5 shrink-0 text-primary/70" />
+                      <span className="truncate">{view.name}</span>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm('¿Eliminar gráfica?')) deleteView(view.id);
+                      }}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
               </div>
-            );
-          })}
-        </div>
-      </ScrollArea>
+            </ScrollArea>
+          </div>
+        )}
+      </div>
       <div className="p-4 border-t text-xs text-muted-foreground text-center">
         {selectedColumns.length} seleccionadas
       </div>
