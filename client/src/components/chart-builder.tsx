@@ -8,12 +8,12 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ScatterChart, Scatter,
   AreaChart, Area,
-  PieChart, Pie, Cell
+  PieChart, Pie, Cell, LabelList
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download, Palette, LayoutDashboard } from 'lucide-react';
+import { Download, Palette, LayoutDashboard, Type } from 'lucide-react';
 import * as htmlToImage from 'html-to-image';
 import download from 'downloadjs';
 import { useToast } from '@/hooks/use-toast';
@@ -54,6 +54,7 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
   const [aggregation, setAggregation] = useState<AggregationType>(initialConfig?.aggregation || 'none');
   const [chartTitle, setChartTitle] = useState(initialConfig?.title || '');
   const [isAddingToDashboard, setIsAddingToDashboard] = useState(false);
+  const [showLabels, setShowLabels] = useState(false);
   
   const [activeColorScheme, setActiveColorScheme] = useState<keyof typeof COLOR_SCHEMES>(
     (Object.keys(COLOR_SCHEMES).find(k => JSON.stringify(COLOR_SCHEMES[k as keyof typeof COLOR_SCHEMES]) === JSON.stringify(initialConfig?.colorScheme)) as any) || 'default'
@@ -192,6 +193,14 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
         plotKeys = processedData[0]?.value !== undefined ? ['value'] : ['count'];
     }
 
+    const formatValue = (val: any) => {
+      if (typeof val !== 'number') return val;
+      return new Intl.NumberFormat('en-US', {
+        maximumFractionDigits: 3,
+        minimumFractionDigits: 0
+      }).format(val);
+    };
+
     const renderChartByType = () => {
       const pieKey = plotKeys[0];
       switch (chartType) {
@@ -201,11 +210,13 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
               <BarChart {...commonProps}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                 <XAxis dataKey={xAxis} tick={{fontSize: 10}} />
-                <YAxis tick={{fontSize: 10}} />
-                <Tooltip />
+                <YAxis tick={{fontSize: 10}} tickFormatter={formatValue} />
+                <Tooltip formatter={formatValue} />
                 <Legend />
                 {plotKeys.map((y, i) => (
-                  <Bar key={y} dataKey={y} fill={colors[i % colors.length]} radius={[4, 4, 0, 0]} />
+                  <Bar key={y} dataKey={y} fill={colors[i % colors.length]} radius={[4, 4, 0, 0]}>
+                    {showLabels && <LabelList dataKey={y} position="top" style={{fontSize: 10, fill: '#666'}} formatter={formatValue} />}
+                  </Bar>
                 ))}
               </BarChart>
             </ResponsiveContainer>
@@ -216,11 +227,13 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
               <LineChart {...commonProps}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                 <XAxis dataKey={xAxis} tick={{fontSize: 10}} />
-                <YAxis tick={{fontSize: 10}} />
-                <Tooltip />
+                <YAxis tick={{fontSize: 10}} tickFormatter={formatValue} />
+                <Tooltip formatter={formatValue} />
                 <Legend />
                 {plotKeys.map((y, i) => (
-                  <Line key={y} type="monotone" dataKey={y} stroke={colors[i % colors.length]} strokeWidth={2} dot={processedData.length < 50} />
+                  <Line key={y} type="monotone" dataKey={y} stroke={colors[i % colors.length]} strokeWidth={2} dot={processedData.length < 50}>
+                    {showLabels && <LabelList dataKey={y} position="top" style={{fontSize: 10, fill: '#666', marginBottom: 5}} formatter={formatValue} />}
+                  </Line>
                 ))}
               </LineChart>
             </ResponsiveContainer>
@@ -231,11 +244,13 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
               <AreaChart {...commonProps}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                 <XAxis dataKey={xAxis} tick={{fontSize: 10}} />
-                <YAxis tick={{fontSize: 10}} />
-                <Tooltip />
+                <YAxis tick={{fontSize: 10}} tickFormatter={formatValue} />
+                <Tooltip formatter={formatValue} />
                 <Legend />
                 {plotKeys.map((y, i) => (
-                  <Area key={y} type="monotone" dataKey={y} fill={colors[i % colors.length]} stroke={colors[i % colors.length]} fillOpacity={0.3} />
+                  <Area key={y} type="monotone" dataKey={y} fill={colors[i % colors.length]} stroke={colors[i % colors.length]} fillOpacity={0.3}>
+                    {showLabels && <LabelList dataKey={y} position="top" style={{fontSize: 10, fill: '#666'}} formatter={formatValue} />}
+                  </Area>
                 ))}
               </AreaChart>
             </ResponsiveContainer>
@@ -251,12 +266,31 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
                   paddingAngle={5}
                   dataKey={pieKey}
                   nameKey={xAxis}
+                  label={showLabels ? ({
+                    cx,
+                    cy,
+                    midAngle,
+                    innerRadius,
+                    outerRadius,
+                    value,
+                    index
+                  }) => {
+                    const RADIAN = Math.PI / 180;
+                    const radius = 25 + outerRadius;
+                    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                    return (
+                      <text x={x} y={y} fill={colors[index % colors.length]} textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="text-[10px]">
+                        {formatValue(value)}
+                      </text>
+                    );
+                  } : false}
                 >
                   {processedData.slice(0, 10).map((_, index) => (
                     <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip formatter={formatValue} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
@@ -287,7 +321,7 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
             </Select>
 
             <Button 
-              variant="primary" 
+              variant="default" 
               size="sm" 
               className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-8 text-xs px-3 shadow-sm border border-primary/20"
               onClick={handleSaveToDashboard}
@@ -297,6 +331,15 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
           </div>
 
           <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="icon" 
+              className={`h-8 w-8 ${showLabels ? 'bg-primary/10 text-primary border-primary/50' : ''}`}
+              onClick={() => setShowLabels(!showLabels)}
+              title="Mostrar etiquetas de datos"
+            >
+              <Type className="w-4 h-4" />
+            </Button>
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="icon" className="h-8 w-8"><Palette className="w-4 h-4" /></Button>

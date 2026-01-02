@@ -31,7 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
-  const { projects, activeProjectId, setActiveProjectId, createProject, deleteProject, user, login, logout } = useSheet();
+  const { projects, activeProjectId, setActiveProjectId, createProject, deleteProject, deleteView, user, login, logout, activeProject } = useSheet();
   const [collapsed, setCollapsed] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -268,23 +268,40 @@ export function Layout({ children }: { children: React.ReactNode }) {
           )}
 
           <div className="px-3 mt-4 pt-4 border-t">
-            {!collapsed && <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 px-3">Recientes</p>}
+            {!collapsed && <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 px-3">Mis Gráficas</p>}
             <div className="space-y-1">
-              {projects.slice(0, 5).map(project => (
-                <div key={project.id} className="group flex items-center gap-1">
+              {activeProject?.savedViews.map(view => (
+                <div key={view.id} className="group flex items-center gap-1">
                   <Button 
-                    variant={activeProjectId === project.id ? "secondary" : "ghost"}
-                    className={`flex-1 justify-start gap-3 h-9 ${collapsed ? 'px-3' : 'px-3'}`}
+                    variant="ghost"
+                    className={`flex-1 justify-start gap-3 h-9 px-3`}
                     onClick={() => {
-                      setActiveProjectId(project.id);
                       setLocation('/analyze');
                     }}
                   >
-                    <FolderOpen className={`h-4 w-4 shrink-0 ${activeProjectId === project.id ? 'text-primary' : ''}`} />
-                    {!collapsed && <span className="truncate text-xs">{project.name}</span>}
+                    <BarChart3 className={`h-4 w-4 shrink-0 text-primary/70`} />
+                    {!collapsed && <span className="truncate text-xs">{view.name}</span>}
                   </Button>
+                  {!collapsed && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 opacity-0 group-hover:opacity-100 text-destructive"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm('¿Eliminar gráfica?')) {
+                          deleteView(view.id);
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
               ))}
+              {(!activeProject || activeProject.savedViews.length === 0) && !collapsed && (
+                <p className="px-3 text-[10px] text-muted-foreground italic">No hay gráficas guardadas</p>
+              )}
             </div>
           </div>
         </div>

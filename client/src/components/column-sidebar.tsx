@@ -142,45 +142,6 @@ export function ColumnSidebar({ data, selectedColumns, onSelectionChange, filter
             })}
           </div>
         </ScrollArea>
-
-        {activeProject && activeProject.savedViews.length > 0 && (
-          <div className="border-t p-4 space-y-3 bg-muted/20">
-            <h2 className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-              Mis Gráficas
-            </h2>
-            <ScrollArea className="h-[200px]">
-              <div className="space-y-1">
-                {activeProject.savedViews.map(view => (
-                  <div 
-                    key={view.id}
-                    className="flex items-center gap-2 group"
-                  >
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="flex-1 justify-start gap-2 h-8 text-[11px] font-normal overflow-hidden px-2 hover:bg-primary/5"
-                      onClick={() => onSelectView?.(view)}
-                    >
-                      <BarChart3 className="h-3.5 w-3.5 shrink-0 text-primary/70" />
-                      <span className="truncate">{view.name}</span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (confirm('¿Eliminar gráfica?')) deleteView(view.id);
-                      }}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          </div>
-        )}
       </div>
       <div className="p-4 border-t text-xs text-muted-foreground text-center">
         {selectedColumns.length} seleccionadas
