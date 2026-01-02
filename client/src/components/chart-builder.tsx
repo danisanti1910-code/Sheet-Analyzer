@@ -60,7 +60,7 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
   );
   
   const chartRef = useRef<HTMLDivElement>(null);
-  const { saveView } = useSheet();
+  const { saveView, activeProject } = useSheet();
   const { toast } = useToast();
 
   const colors = COLOR_SCHEMES[activeColorScheme];
@@ -170,7 +170,7 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
       yAxis: yAxis.length > 0 ? yAxis : ['count'],
       selectedColumns,
       colorScheme: colors,
-      filteredValues: data.rows.length < (activeProject?.sheetData?.rows.length || 0) ? {} : undefined // Placeholder logic, usually we'd pass active filters
+      filteredValues: data.rows.length < (activeProject?.sheetData?.rows.length || 0) ? {} : undefined
     });
     setIsAddingToDashboard(false);
     toast({
