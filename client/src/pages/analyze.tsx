@@ -18,7 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 
-export function ChartBuilderWrapper({ data, selectedColumns, onSelectionChange, onFilterChange }: { data: any, selectedColumns: string[], onSelectionChange: (cols: string[]) => void, onFilterChange: (col: string, vals: string[]) => void }) {
+export function ChartBuilderWrapper({ data, selectedColumns, setSelectedColumns, setFilteredValues }: { data: any, selectedColumns: string[], setSelectedColumns: (cols: string[]) => void, setFilteredValues: (vals: any) => void }) {
   const [search] = useLocation();
   const { activeProject } = useSheet();
   const [initialConfig, setInitialConfig] = useState<any>(null);
@@ -29,28 +29,22 @@ export function ChartBuilderWrapper({ data, selectedColumns, onSelectionChange, 
     if (viewId && activeProject) {
       const view = activeProject.savedViews.find(v => v.id === viewId);
       if (view) {
-        // Use functional updates to ensure consistency
-        onSelectionChange([...view.selectedColumns]);
+        // Force state updates to sync with the view
+        setSelectedColumns([...view.selectedColumns]);
         if (view.filteredValues) {
-          Object.entries(view.filteredValues).forEach(([col, vals]) => {
-            onFilterChange(col, vals as string[]);
-          });
+          setFilteredValues({ ...view.filteredValues });
         }
         setInitialConfig({
-          chartType: view.chartType,
-          xAxis: view.xAxis,
-          yAxis: [...view.yAxis],
-          aggregation: view.aggregation,
-          colorScheme: view.colorScheme,
-          title: view.name,
-          showLabels: view.showLabels,
-          activeColorScheme: view.activeColorScheme
+          ...view,
+          title: view.name
         });
       }
     } else {
+      setSelectedColumns([]);
+      setFilteredValues({});
       setInitialConfig(null);
     }
-  }, [search, activeProject?.id]); // Use activeProject.id for more stable dependency
+  }, [search, activeProject?.id]);
 
   return <ChartBuilder key={JSON.stringify(initialConfig)} data={data} selectedColumns={selectedColumns} initialConfig={initialConfig} />;
 }
@@ -363,8 +357,8 @@ export default function Analyze() {
                             <ChartBuilderWrapper 
                               data={displayData} 
                               selectedColumns={selectedColumns} 
-                              onSelectionChange={setSelectedColumns}
-                              onFilterChange={handleFilterChange}
+                              setSelectedColumns={setSelectedColumns}
+                              setFilteredValues={setFilteredValues}
                             />
                         </div>
                         <div className="w-full xl:w-[400px] shrink-0">
@@ -388,14 +382,18 @@ export default function Analyze() {
                       <CardHeader><CardTitle>Gestión de Duplicados</CardTitle></CardHeader>
                       <CardContent>
                         <div className="space-y-4">
-                          {Array.from(duplicates).map((idx) => (
+                          {duplicates.map((idx) => (
                             <div key={idx} className={`p-4 border rounded-lg flex items-center justify-between ${ignoredDuplicates.has(idx) ? 'opacity-50' : ''}`}>
                               <div className="text-sm truncate max-w-md">
                                 <span className="font-mono text-xs mr-2 text-muted-foreground">Fila {idx + 1}</span>
                                 {JSON.stringify(displayData.rows[idx]).substring(0, 100)}...
                               </div>
                               <div className="flex gap-2">
-                                <Button size="sm" variant="outline" className="gap-1" onClick={() => setIgnoredDuplicates(prev => new Set([...prev, idx]))}>
+                                <Button size="sm" variant="outline" className="gap-1" onClick={() => setIgnoredDuplicates(prev => {
+                                  const next = new Set(prev);
+                                  next.add(idx);
+                                  return next;
+                                })}>
                                   <UserCheck className="h-3 w-3" /> Ignorar
                                 </Button>
                                 <Button size="sm" variant="destructive" className="gap-1" onClick={() => handleRemoveDuplicate(idx)}>

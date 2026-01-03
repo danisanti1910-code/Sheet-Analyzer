@@ -75,19 +75,18 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
     if (initialConfig) {
       setChartType(initialConfig.chartType);
       setXAxis(initialConfig.xAxis);
-      setYAxis(initialConfig.yAxis || []);
+      setYAxis([...(initialConfig.yAxis || [])]);
       setAggregation(initialConfig.aggregation || 'none');
       setChartTitle(initialConfig.title || '');
       setShowLabels(initialConfig.showLabels || false);
       if (initialConfig.activeColorScheme) {
         setActiveColorScheme(initialConfig.activeColorScheme as any);
       }
-      // Trigger data processing for the loaded view
       return;
-    };
+    }
     
     // Auto-selection logic for NEW charts only
-    if (!initialConfig && selectedColumns.length > 0) {
+    if (selectedColumns.length > 0) {
       const numerics = selectedColumns.filter(c => data.columnProfiles[c]?.type === 'numeric');
       const categoricals = selectedColumns.filter(c => data.columnProfiles[c]?.type === 'categorical' || data.columnProfiles[c]?.type === 'boolean');
       const datetimes = selectedColumns.filter(c => data.columnProfiles[c]?.type === 'datetime');
@@ -124,7 +123,7 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
       setXAxis('');
       setYAxis([]);
     }
-  }, [selectedColumns, data.columnProfiles, initialConfig]);
+  }, [selectedColumns, data.columnProfiles, JSON.stringify(initialConfig)]);
 
   const processedData = useMemo(() => {
     if (!data.rows || data.rows.length === 0 || !xAxis) return [];
