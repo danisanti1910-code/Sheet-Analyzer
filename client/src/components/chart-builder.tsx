@@ -72,42 +72,57 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
   const colors = COLOR_SCHEMES[activeColorScheme];
 
   useEffect(() => {
-    if (initialConfig) return;
+    if (initialConfig) {
+      setChartType(initialConfig.chartType);
+      setXAxis(initialConfig.xAxis);
+      setYAxis(initialConfig.yAxis || []);
+      setAggregation(initialConfig.aggregation || 'none');
+      setChartTitle(initialConfig.title || '');
+      setShowLabels(initialConfig.showLabels || false);
+      if (initialConfig.activeColorScheme) {
+        setActiveColorScheme(initialConfig.activeColorScheme as any);
+      }
+      // Trigger data processing for the loaded view
+      return;
+    };
+    
+    // Auto-selection logic for NEW charts only
+    if (!initialConfig && selectedColumns.length > 0) {
+      const numerics = selectedColumns.filter(c => data.columnProfiles[c]?.type === 'numeric');
+      const categoricals = selectedColumns.filter(c => data.columnProfiles[c]?.type === 'categorical' || data.columnProfiles[c]?.type === 'boolean');
+      const datetimes = selectedColumns.filter(c => data.columnProfiles[c]?.type === 'datetime');
+
+      if (datetimes.length > 0 && numerics.length > 0) {
+        setChartType('line');
+        setXAxis(datetimes[0]);
+        setYAxis([numerics[0]]);
+        setAggregation('none');
+      } else if (categoricals.length > 0 && numerics.length > 0) {
+        setChartType('bar');
+        setXAxis(categoricals[0]);
+        setYAxis([numerics[0]]);
+        setAggregation('sum');
+      } else if (numerics.length >= 2) {
+        setChartType('scatter');
+        setXAxis(numerics[0]);
+        setYAxis([numerics[1]]);
+        setAggregation('none');
+      } else if (categoricals.length > 0) {
+          setChartType('bar');
+          setXAxis(categoricals[0]);
+          setYAxis([]);
+          setAggregation('count');
+      } else if (numerics.length === 1) {
+          setChartType('bar');
+          setXAxis(numerics[0]);
+          setYAxis([numerics[0]]);
+          setAggregation('none');
+      }
+    }
+
     if (selectedColumns.length === 0) {
       setXAxis('');
       setYAxis([]);
-      return;
-    }
-
-    const numerics = selectedColumns.filter(c => data.columnProfiles[c]?.type === 'numeric');
-    const categoricals = selectedColumns.filter(c => data.columnProfiles[c]?.type === 'categorical' || data.columnProfiles[c]?.type === 'boolean');
-    const datetimes = selectedColumns.filter(c => data.columnProfiles[c]?.type === 'datetime');
-
-    if (datetimes.length > 0 && numerics.length > 0) {
-      setChartType('line');
-      setXAxis(datetimes[0]);
-      setYAxis([numerics[0]]);
-      setAggregation('none');
-    } else if (categoricals.length > 0 && numerics.length > 0) {
-      setChartType('bar');
-      setXAxis(categoricals[0]);
-      setYAxis([numerics[0]]);
-      setAggregation('sum');
-    } else if (numerics.length >= 2) {
-      setChartType('scatter');
-      setXAxis(numerics[0]);
-      setYAxis([numerics[1]]);
-      setAggregation('none');
-    } else if (categoricals.length > 0) {
-        setChartType('bar');
-        setXAxis(categoricals[0]);
-        setYAxis([]);
-        setAggregation('count');
-    } else if (numerics.length === 1) {
-        setChartType('bar');
-        setXAxis(numerics[0]);
-        setYAxis([numerics[0]]);
-        setAggregation('none');
     }
   }, [selectedColumns, data.columnProfiles, initialConfig]);
 

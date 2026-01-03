@@ -29,7 +29,8 @@ export function ChartBuilderWrapper({ data, selectedColumns, onSelectionChange, 
     if (viewId && activeProject) {
       const view = activeProject.savedViews.find(v => v.id === viewId);
       if (view) {
-        onSelectionChange(view.selectedColumns);
+        // Use functional updates to ensure consistency
+        onSelectionChange([...view.selectedColumns]);
         if (view.filteredValues) {
           Object.entries(view.filteredValues).forEach(([col, vals]) => {
             onFilterChange(col, vals as string[]);
@@ -38,7 +39,7 @@ export function ChartBuilderWrapper({ data, selectedColumns, onSelectionChange, 
         setInitialConfig({
           chartType: view.chartType,
           xAxis: view.xAxis,
-          yAxis: view.yAxis,
+          yAxis: [...view.yAxis],
           aggregation: view.aggregation,
           colorScheme: view.colorScheme,
           title: view.name,
@@ -46,8 +47,10 @@ export function ChartBuilderWrapper({ data, selectedColumns, onSelectionChange, 
           activeColorScheme: view.activeColorScheme
         });
       }
+    } else {
+      setInitialConfig(null);
     }
-  }, [search, activeProject]);
+  }, [search, activeProject?.id]); // Use activeProject.id for more stable dependency
 
   return <ChartBuilder key={JSON.stringify(initialConfig)} data={data} selectedColumns={selectedColumns} initialConfig={initialConfig} />;
 }
@@ -385,7 +388,7 @@ export default function Analyze() {
                       <CardHeader><CardTitle>Gestión de Duplicados</CardTitle></CardHeader>
                       <CardContent>
                         <div className="space-y-4">
-                          {duplicates.map((idx) => (
+                          {Array.from(duplicates).map((idx) => (
                             <div key={idx} className={`p-4 border rounded-lg flex items-center justify-between ${ignoredDuplicates.has(idx) ? 'opacity-50' : ''}`}>
                               <div className="text-sm truncate max-w-md">
                                 <span className="font-mono text-xs mr-2 text-muted-foreground">Fila {idx + 1}</span>
