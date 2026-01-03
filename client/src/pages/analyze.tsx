@@ -18,9 +18,43 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 
+export function ChartBuilderWrapper({ data, selectedColumns, onSelectionChange, onFilterChange }: { data: any, selectedColumns: string[], onSelectionChange: (cols: string[]) => void, onFilterChange: (col: string, vals: string[]) => void }) {
+  const [search] = useLocation();
+  const { activeProject } = useSheet();
+  const [initialConfig, setInitialConfig] = useState<any>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(search.split('?')[1]);
+    const viewId = params.get('view');
+    if (viewId && activeProject) {
+      const view = activeProject.savedViews.find(v => v.id === viewId);
+      if (view) {
+        onSelectionChange(view.selectedColumns);
+        if (view.filteredValues) {
+          Object.entries(view.filteredValues).forEach(([col, vals]) => {
+            onFilterChange(col, vals as string[]);
+          });
+        }
+        setInitialConfig({
+          chartType: view.chartType,
+          xAxis: view.xAxis,
+          yAxis: view.yAxis,
+          aggregation: view.aggregation,
+          colorScheme: view.colorScheme,
+          title: view.name,
+          showLabels: view.showLabels,
+          activeColorScheme: view.activeColorScheme
+        });
+      }
+    }
+  }, [search, activeProject]);
+
+  return <ChartBuilder key={JSON.stringify(initialConfig)} data={data} selectedColumns={selectedColumns} initialConfig={initialConfig} />;
+}
+
 export default function Analyze() {
   const { activeProject, updateProject, refreshProjectData, activeProjectId, user } = useSheet();
-  const [, setLocation] = useLocation();
+  const [search, setLocation] = useLocation();
   const { toast } = useToast();
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
   const [filteredValues, setFilteredValues] = useState<Record<string, string[]>>({});
@@ -323,7 +357,12 @@ export default function Analyze() {
                   <TabsContent value="visualize" className="space-y-4">
                      <div className="flex flex-col xl:flex-row gap-6">
                         <div className="flex-1 h-[600px]">
-                            <ChartBuilder data={displayData} selectedColumns={selectedColumns} />
+                            <ChartBuilderWrapper 
+                              data={displayData} 
+                              selectedColumns={selectedColumns} 
+                              onSelectionChange={setSelectedColumns}
+                              onFilterChange={handleFilterChange}
+                            />
                         </div>
                         <div className="w-full xl:w-[400px] shrink-0">
                             <InsightsPanel 

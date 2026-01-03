@@ -295,7 +295,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     variant="ghost"
                     className={`flex-1 justify-start gap-3 h-9 px-3`}
                     onClick={() => {
-                      setLocation('/analyze');
+                      setLocation(`/analyze?view=${view.id}`);
                     }}
                   >
                     <BarChart3 className={`h-4 w-4 shrink-0 text-primary/70`} />
