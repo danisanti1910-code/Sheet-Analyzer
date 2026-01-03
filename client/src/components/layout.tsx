@@ -12,7 +12,9 @@ import {
   Trash2,
   LogOut,
   User as UserIcon,
-  LayoutGrid
+  LayoutGrid,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -114,7 +116,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="password">Contraseña</Label>
-                    <Input id="password" type="password" placeholder="••••••••" defaultValue="password" required />
+                    <div className="relative">
+                      <Input 
+                        id="password" 
+                        type={showPassword ? "text" : "password"} 
+                        placeholder="••••••••" 
+                        defaultValue="password" 
+                        required 
+                      />
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="sm" 
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                      </Button>
+                    </div>
                   </div>
                   <Button type="submit" className="w-full h-11">Ingresar</Button>
                 </form>

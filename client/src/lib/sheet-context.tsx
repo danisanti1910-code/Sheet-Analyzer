@@ -9,6 +9,9 @@ export interface SavedView {
   selectedColumns: string[];
   filteredValues?: Record<string, string[]>;
   colorScheme?: string[];
+  aggregation?: string;
+  showLabels?: boolean;
+  activeColorScheme?: string;
   timestamp: number;
 }
 

@@ -1,18 +1,19 @@
-import { useSheet } from '@/lib/sheet-context';
+import { useSheet, SavedView } from '@/lib/sheet-context';
 import { Layout } from '@/components/layout';
 import { ChartBuilder } from '@/components/chart-builder';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Trash2, AlertCircle, Plus, Edit3 } from 'lucide-react';
+import { Trash2, AlertCircle, Plus, Edit3, Settings2 } from 'lucide-react';
 import { Link } from 'wouter';
-import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from "@/components/ui/resizable";
 import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 export default function Dashboards() {
-  const { activeProject, activeProjectId, deleteView, updateViewName } = useSheet();
+  const { activeProject, deleteView, updateViewName, updateProject } = useSheet();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [tempName, setTempName] = useState("");
+  const [editingView, setEditingView] = useState<SavedView | null>(null);
 
   if (!activeProject || !activeProject.sheetData) {
     return (
@@ -33,67 +34,96 @@ export default function Dashboards() {
 
   return (
     <Layout>
-      <div className="h-[calc(100vh-3.5rem)] flex flex-col p-6 space-y-6 overflow-hidden">
+      <div className="min-h-screen flex flex-col p-6 space-y-6 bg-slate-50/50 dark:bg-slate-950/20">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">{activeProject.name} - Dashboard</h1>
-            <p className="text-muted-foreground text-xs">Vistas guardadas en este proyecto.</p>
+            <p className="text-muted-foreground text-xs">Panel interactivo con tus gráficas guardadas.</p>
           </div>
           <Button asChild variant="outline" size="sm" className="gap-2">
             <Link href="/analyze"><Plus className="w-4 h-4" /> Nuevo Análisis</Link>
           </Button>
         </div>
 
-        <div className="flex-1 min-h-0 bg-slate-50 dark:bg-slate-950/20 rounded-xl p-4 overflow-hidden border">
-          {activeProject.savedViews.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
-              <p>No hay gráficas guardadas en este proyecto.</p>
+        {activeProject.savedViews.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed rounded-xl p-12">
+            <p>No hay gráficas guardadas en este proyecto.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-20">
+            {activeProject.savedViews.map((view) => (
+              <Card key={view.id} className="group overflow-hidden bg-background flex flex-col shadow-md border hover:border-primary/50 transition-all duration-300 resize overflow-auto min-h-[450px]">
+                <CardHeader className="flex flex-row items-center justify-between py-3 px-4 border-b bg-muted/20 shrink-0">
+                  {editingId === view.id ? (
+                    <div className="flex gap-1">
+                      <Input value={tempName} onChange={e => setTempName(e.target.value)} className="h-7 text-xs w-32" />
+                      <Button size="sm" className="h-7" onClick={() => handleUpdateName(view.id)}>OK</Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 group/title">
+                      <CardTitle className="text-xs font-bold truncate uppercase tracking-tight">{view.name}</CardTitle>
+                      <Button variant="ghost" size="icon" className="h-5 w-5 opacity-0 group-hover:opacity-100" onClick={() => { setEditingId(view.id); setTempName(view.name); }}>
+                        <Edit3 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => setEditingView(view)}>
+                      <Settings2 className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => deleteView(view.id)}>
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0 flex-1 min-h-0 bg-white dark:bg-black/20">
+                  <ChartBuilder 
+                    data={activeProject.sheetData!} 
+                    selectedColumns={view.selectedColumns}
+                    hideControls
+                    initialConfig={{
+                      chartType: view.chartType,
+                      xAxis: view.xAxis,
+                      yAxis: view.yAxis,
+                      colorScheme: view.colorScheme,
+                      aggregation: view.aggregation as any,
+                      showLabels: view.showLabels,
+                      activeColorScheme: view.activeColorScheme as any
+                    }}
+                  />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        <Dialog open={!!editingView} onOpenChange={(open) => !open && setEditingView(null)}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Editar Configuración de Gráfica</DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              {editingView && (
+                <ChartBuilder 
+                  data={activeProject.sheetData!} 
+                  selectedColumns={editingView.selectedColumns}
+                  initialConfig={{
+                    chartType: editingView.chartType,
+                    xAxis: editingView.xAxis,
+                    yAxis: editingView.yAxis,
+                    colorScheme: editingView.colorScheme,
+                    aggregation: editingView.aggregation as any,
+                    showLabels: editingView.showLabels,
+                    activeColorScheme: editingView.activeColorScheme as any
+                  }}
+                />
+              )}
             </div>
-          ) : (
-            <ResizablePanelGroup direction="horizontal">
-                {activeProject.savedViews.map((view, index) => (
-                    <React.Fragment key={view.id}>
-                        <ResizablePanel defaultSize={100 / activeProject.savedViews.length} minSize={20}>
-                            <Card className="h-full group overflow-hidden border-none bg-background flex flex-col shadow-sm">
-                                <CardHeader className="flex flex-row items-center justify-between py-2 px-3 border-b bg-muted/10 shrink-0">
-                                    {editingId === view.id ? (
-                                      <div className="flex gap-1">
-                                        <Input value={tempName} onChange={e => setTempName(e.target.value)} className="h-6 text-[10px] w-24" />
-                                        <Button size="icon" className="h-6 w-6" onClick={() => handleUpdateName(view.id)}>OK</Button>
-                                      </div>
-                                    ) : (
-                                      <div className="flex items-center gap-1 group/title">
-                                        <CardTitle className="text-[10px] font-bold truncate uppercase">{view.name}</CardTitle>
-                                        <Button variant="ghost" size="icon" className="h-4 w-4 opacity-0 group-hover/title:opacity-100" onClick={() => { setEditingId(view.id); setTempName(view.name); }}>
-                                          <Edit3 className="h-2 w-2" />
-                                        </Button>
-                                      </div>
-                                    )}
-                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => deleteView(view.id)}>
-                                        <Trash2 className="w-3 h-3" />
-                                    </Button>
-                                </CardHeader>
-                                <CardContent className="p-0 flex-1 min-h-0">
-                                    <ChartBuilder 
-                                        data={activeProject.sheetData!} 
-                                        selectedColumns={view.selectedColumns}
-                                        hideControls
-                                        initialConfig={{
-                                            chartType: view.chartType,
-                                            xAxis: view.xAxis,
-                                            yAxis: view.yAxis,
-                                            colorScheme: view.colorScheme
-                                        }}
-                                    />
-                                </CardContent>
-                            </Card>
-                        </ResizablePanel>
-                        {index < activeProject.savedViews.length - 1 && <ResizableHandle withHandle />}
-                    </React.Fragment>
-                ))}
-            </ResizablePanelGroup>
-          )}
-        </div>
+            <DialogFooter>
+              <Button onClick={() => setEditingView(null)}>Cerrar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );

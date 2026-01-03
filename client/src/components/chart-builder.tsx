@@ -34,6 +34,8 @@ interface ChartBuilderProps {
     aggregation?: AggregationType;
     colorScheme?: string[];
     title?: string;
+    showLabels?: boolean;
+    activeColorScheme?: string;
   };
 }
 
@@ -55,9 +57,10 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
   const [aggregation, setAggregation] = useState<AggregationType>(initialConfig?.aggregation || 'none');
   const [chartTitle, setChartTitle] = useState(initialConfig?.title || '');
   const [isAddingToDashboard, setIsAddingToDashboard] = useState(false);
-  const [showLabels, setShowLabels] = useState(false);
+  const [showLabels, setShowLabels] = useState(initialConfig?.showLabels || false);
   
   const [activeColorScheme, setActiveColorScheme] = useState<keyof typeof COLOR_SCHEMES>(
+    (Object.keys(COLOR_SCHEMES).find(k => k === initialConfig?.activeColorScheme) as any) || 
     (Object.keys(COLOR_SCHEMES).find(k => JSON.stringify(COLOR_SCHEMES[k as keyof typeof COLOR_SCHEMES]) === JSON.stringify(initialConfig?.colorScheme)) as any) || 'default'
   );
   
@@ -173,6 +176,10 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
       yAxis: yAxis.length > 0 ? yAxis : ['count'],
       selectedColumns,
       colorScheme: colors,
+      aggregation,
+      showLabels,
+      activeColorScheme,
+      // Pass the actual current filters/data state if needed
       filteredValues: data.rows.length < (activeProject?.sheetData?.rows.length || 0) ? {} : undefined
     });
     setIsAddingToDashboard(false);
