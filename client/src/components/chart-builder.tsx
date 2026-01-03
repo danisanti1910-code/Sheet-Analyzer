@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
+import { useLocation } from 'wouter';
 import { SheetData } from '@/lib/sheet-utils';
 import { useSheet } from '@/lib/sheet-context';
 import {
@@ -61,7 +62,8 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
   );
   
   const chartRef = useRef<HTMLDivElement>(null);
-  const { saveView, activeProject, setLocation } = useSheet();
+  const { saveView, activeProject } = useSheet();
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
 
   const colors = COLOR_SCHEMES[activeColorScheme];
