@@ -1,0 +1,198 @@
+Objetivo
+
+Corregir 3 problemas sin romper lo ya funcional:
+
+“Nuevo análisis / nueva gráfica” siempre abre la misma gráfica (se sobreescribe en vez de crear una nueva).
+
+Dashboard: gráficas no son responsivas, se cortan, y el resize es solo vertical (no horizontal) + quiero “agrupaciones” tipo grid.
+
+Crear un Dashboard Principal global (cross-proyecto) para pinnear gráficas de distintos proyectos/datasets y verlas juntas.
+
+1) Arreglar “Nueva gráfica” para que SIEMPRE cree una nueva (no re-use / overwrite)
+
+Identifica la entidad fuente de verdad de una gráfica guardada (ej: charts o savedCharts) y ubica:
+
+función createNewChart / newAnalysis / handleNewChart
+
+lógica de router tipo navigate("/analysis") o navigate("/analysis/:chartId")
+
+Cambia la lógica de “Nuevo Análisis” para que:
+
+Genere un ID nuevo (ej: chartId = crypto.randomUUID() o timestamp + random).
+
+Cree un nuevo registro de chart con estado inicial.
+
+Navegue a una ruta con ese ID:
+
+navigate(/projects/:projectId/charts/:chartId/edit)
+(o equivalente en tu router)
+
+No reutilices el “chart seleccionado” actual.
+
+Si existe algo como selectedChartId en store/localStorage, no lo sobrescribas al crear uno nuevo.
+
+Asegura que “Nuevo análisis” limpia cualquier estado temporal como:
+
+draftChart, activeChart, editingChart (reset)
+
+Verifica que al guardar una gráfica, se use chartId como key, y que se haga:
+
+charts[chartId] = {...}
+
+no charts[projectId] = ... ni charts[0] = ...
+
+Agrega un test manual:
+
+Crear gráfica A, guardarla.
+
+Click “Nuevo análisis”
+
+Crear gráfica B, guardarla.
+
+Confirmar que existen A y B y que al abrirlas no se pisan.
+
+2) Hacer el dashboard realmente “responsive” + resize horizontal/vertical + layout tipo grid
+
+Identifica el componente del dashboard (ej: DashboardPage, ProjectDashboard, etc.) y el contenedor donde renderizas cards.
+
+Implementa un layout tipo grid / mosaic y evita “absolute positioning” que provoca “translape”.
+
+Si ya usas una librería tipo react-grid-layout, úsala bien.
+
+Si NO usas librería, usa CSS Grid con cards que fluyan.
+
+Si ya usas react-grid-layout (o similar), ajusta:
+
+isResizable: true
+
+resizeHandles: ["s","e","se","n","w","nw","ne","sw"] (permitir horizontal y vertical)
+
+cols por breakpoint (responsive):
+
+lg: 12, md: 10, sm: 6, xs: 4, xxs: 2
+
+rowHeight estable
+
+Evitar overlap:
+
+preventCollision: true
+
+compactType: "vertical" o "horizontal" (define uno)
+
+Persistencia de layout:
+
+Guarda layout por dashboard en storage:
+
+por proyecto: dashboardLayoutByProject[projectId]
+
+y para dashboard global: globalDashboardLayout
+
+Al cargar dashboard:
+
+si hay layout guardado -> úsalo
+
+si no -> genera layout default sin traslapes
+
+Hacer charts responsivos al contenedor:
+
+Dentro de cada card/chart, forzar que el chart use el tamaño del contenedor:
+
+usar un wrapper ResponsiveContainer (si es Recharts)
+
+o recalcular width/height desde ResizeObserver
+
+El chart no debe tener width/height fijos hardcodeados.
+
+Cuando cambie el tamaño del card, el chart debe re-render con el nuevo size.
+
+Evitar “se corta”:
+
+Asegurar que el contenedor padre tenga:
+
+overflow: hidden (solo si lo necesitas)
+
+pero el chart debe escalar dentro, no quedar fijo.
+
+Dar minWidth/minHeight razonables para que no quede inutilizable.
+
+Test manual:
+
+Crear 4 gráficas.
+
+Cambiar tamaño de 2 en horizontal y vertical.
+
+Recargar página y confirmar que:
+
+No se traslapan
+
+Se conserva el layout
+
+Las gráficas se escalan (no se recortan)
+
+3) Crear “Dashboard Principal” global cross-proyecto (pinned charts)
+
+Agrega un botón en el menú lateral: “Dashboard principal”
+
+ruta: /dashboard-global (o similar)
+
+Crea estructura de datos para “pines”:
+
+globalDashboard.items[] donde cada item tenga:
+
+globalItemId
+
+projectId
+
+chartId
+
+datasetId (si aplica)
+
+title
+
+layout (x,y,w,h) o se define aparte en layout global
+
+En cada gráfica (en proyecto):
+
+agrega acción “Agregar al Dashboard principal”
+
+al click:
+
+insertar referencia en globalDashboard.items
+
+si ya existe esa chartId+projectId, no duplicar (o permitir duplicar si quieres)
+
+Render del dashboard global:
+
+Debe cargar cada item resolviendo la gráfica real:
+
+chart = chartsByProject[projectId][chartId]
+
+Debe mostrarla con el MISMO componente de render (no duplicar lógica)
+
+El dashboard global debe tener layout independiente:
+
+globalDashboardLayout persistente igual que el dashboard del proyecto.
+
+Test manual:
+
+Proyecto A: guardar gráfica 1
+
+Proyecto B: guardar gráfica 2
+
+Agregar ambas al Dashboard principal
+
+Confirmar que se ven juntas y se pueden reordenar/redimensionar
+
+Recargar y confirmar persistencia.
+
+Restricciones (NO romper)
+
+No cambiar cómo se generan los datos de la gráfica, solo:
+
+creación de IDs
+
+rutas/selección de chart
+
+layout y persistencia
+
+Mantener compatibilidad con gráficas ya guardadas (migración si cambia estructura).

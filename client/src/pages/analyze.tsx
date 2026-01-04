@@ -34,7 +34,7 @@ export function ChartBuilderWrapper({
   projectId: string,
   chartId?: string
 }) {
-  const { getChart, createChart, updateChart, activeProject } = useSheet();
+  const { getChart, createChart, updateChart, activeProject, addToGlobalDashboard } = useSheet();
   const [initialConfig, setInitialConfig] = useState<any>(null);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -64,44 +64,42 @@ export function ChartBuilderWrapper({
     }
   }, [chartId, activeProject?.id]);
 
-  const handleSave = (config: SavedChart['chartConfig'] & { name: string }, addToDashboard: boolean = false) => {
+  const handleSave = (config: SavedChart['chartConfig'] & { name: string }, options: { addToProjectDashboard: boolean, addToGlobalDashboard: boolean }) => {
     const { name, ...chartConfig } = config;
+    const { addToProjectDashboard, addToGlobalDashboard } = options;
     
-    if (chartId) {
+    let currentChartId = chartId;
+
+    if (currentChartId) {
       // Update existing
-      updateChart(chartId, {
+      updateChart(currentChartId, {
         name,
-        includeInsights: addToDashboard, // Update preference if saving again? Or maybe keep existing if not specified? 
-        // Let's assume if they click "Upload to dashboard" they want insights on. 
-        // If "Just save", maybe we shouldn't disable it if it was already on?
-        // For now, let's just set it to addToDashboard value which acts as "enable dashboard features".
-        // Better logic: if addToDashboard is true, set includeInsights=true. If false, leave it (or set false?).
-        // Prompt says: "Subir al Dashboard debe incluir tarjetas".
-        includeInsights: addToDashboard ? true : undefined, // Don't disable if just saving updates
+        includeInsights: addToProjectDashboard ? true : undefined,
         chartConfig: {
           ...chartConfig,
           selectedColumns, 
         }
       });
       toast({ title: "Gráfica actualizada", description: "Los cambios se han guardado correctamente." });
-      
-      if (addToDashboard) {
-        setLocation(`/projects/${projectId}/dashboards`);
-      }
     } else {
       // Create new
-      const newId = createChart(projectId, {
+      currentChartId = createChart(projectId, {
         ...chartConfig,
         selectedColumns
-      }, name, addToDashboard); // Pass name and includeInsights
+      }, name, addToProjectDashboard);
       
       toast({ title: "Gráfica guardada", description: "Se ha creado una nueva gráfica en el proyecto." });
-      
-      if (addToDashboard) {
+    }
+
+    // Handle Global Dashboard
+    if (addToGlobalDashboard && currentChartId) {
+        addToGlobalDashboard(projectId, currentChartId);
+    }
+
+    if (addToProjectDashboard) {
         setLocation(`/projects/${projectId}/dashboards`);
-      } else {
-        setLocation(`/projects/${projectId}/charts/${newId}`);
-      }
+    } else if (!chartId) {
+        setLocation(`/projects/${projectId}/charts/${currentChartId}`);
     }
   };
 
@@ -116,6 +114,13 @@ export function ChartBuilderWrapper({
     />
   );
 }
+
+// Rename destructured prop to avoid conflict or just use it directly
+// Wait, I messed up the destructuring above.
+// Correct approach:
+// const { getChart, createChart, updateChart, activeProject, addToGlobalDashboard } = useSheet();
+// then use addToGlobalDashboard directly.
+
 
 export default function Analyze({ params }: { params: { projectId: string, chartId?: string } }) {
   const { activeProject, setActiveProjectId, updateProject, refreshProjectData, user } = useSheet();

@@ -22,6 +22,13 @@ export interface SavedChart {
   updatedAt: number;
 }
 
+export interface GlobalDashboardItem {
+  id: string;
+  projectId: string;
+  chartId: string;
+  layout: { x: number; y: number; w: number; h: number };
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -53,6 +60,12 @@ interface SheetContextType {
   deleteChart: (chartId: string) => void;
   getChart: (chartId: string) => SavedChart | undefined;
   
+  // Global Dashboard
+  globalDashboardItems: GlobalDashboardItem[];
+  addToGlobalDashboard: (projectId: string, chartId: string) => void;
+  removeFromGlobalDashboard: (itemId: string) => void;
+  updateGlobalDashboardLayout: (items: GlobalDashboardItem[]) => void;
+  
   // Auth mock
   user: User | null;
   login: (user: User) => void;
@@ -69,6 +82,7 @@ const SheetContext = createContext<SheetContextType | undefined>(undefined);
 
 export const SheetProvider = ({ children }: { children: ReactNode }) => {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [globalDashboardItems, setGlobalDashboardItems] = useState<GlobalDashboardItem[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const { toast } = useToast();
@@ -87,6 +101,10 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
     if (savedProjects) {
       setProjects(JSON.parse(savedProjects));
     }
+    const savedGlobalDashboard = localStorage.getItem('sheet_analyzer_global_dashboard');
+    if (savedGlobalDashboard) {
+        setGlobalDashboardItems(JSON.parse(savedGlobalDashboard));
+    }
   }, []);
 
   // Persist projects whenever they change
@@ -95,6 +113,11 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
       localStorage.setItem('sheet_analyzer_projects', JSON.stringify(projects));
     }
   }, [projects]);
+
+  // Persist global dashboard
+  useEffect(() => {
+    localStorage.setItem('sheet_analyzer_global_dashboard', JSON.stringify(globalDashboardItems));
+  }, [globalDashboardItems]);
 
   const login = (userData: User) => {
     setUser(userData);
@@ -195,6 +218,40 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
     return undefined;
   };
 
+  const addToGlobalDashboard = (projectId: string, chartId: string) => {
+    // Check if already exists to avoid duplicates (optional, but good for now)
+    if (globalDashboardItems.some(item => item.projectId === projectId && item.chartId === chartId)) {
+        return; 
+    }
+
+    const newItem: GlobalDashboardItem = {
+        id: Math.random().toString(36).substring(7),
+        projectId,
+        chartId,
+        layout: { x: 0, y: Infinity, w: 6, h: 4 }
+    };
+    
+    setGlobalDashboardItems(prev => {
+        // Find safe Y position
+        let maxY = 0;
+        prev.forEach(item => {
+            maxY = Math.max(maxY, item.layout.y + item.layout.h);
+        });
+        newItem.layout.y = maxY;
+        return [...prev, newItem];
+    });
+    
+    toast({ title: "Añadido al Dashboard Principal", description: "La gráfica ahora es visible en el panel global." });
+  };
+
+  const removeFromGlobalDashboard = (itemId: string) => {
+    setGlobalDashboardItems(prev => prev.filter(item => item.id !== itemId));
+  };
+
+  const updateGlobalDashboardLayout = (items: GlobalDashboardItem[]) => {
+      setGlobalDashboardItems(items);
+  };
+
   const refreshProjectData = async (projectId: string) => {
     const project = projects.find(p => p.id === projectId);
     if (!project || !project.sourceUrl) return;
@@ -235,6 +292,10 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
       updateChart,
       deleteChart,
       getChart,
+      globalDashboardItems,
+      addToGlobalDashboard,
+      removeFromGlobalDashboard,
+      updateGlobalDashboardLayout,
       user,
       login,
       logout

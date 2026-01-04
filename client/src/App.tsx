@@ -7,6 +7,7 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import Analyze from "@/pages/analyze";
 import Dashboards from "@/pages/dashboards";
+import GlobalDashboard from "@/pages/global-dashboard";
 import Projects from "@/pages/projects";
 
 function Router() {
@@ -23,6 +24,7 @@ function Router() {
       <Route path="/projects/:projectId/charts/new" component={Analyze} />
       <Route path="/projects/:projectId/charts/:chartId" component={Analyze} />
       <Route path="/projects/:projectId/dashboards" component={Dashboards} />
+      <Route path="/dashboard-global" component={GlobalDashboard} />
 
       {/* Legacy routes - redirect or keep for now */}
       <Route path="/analyze">

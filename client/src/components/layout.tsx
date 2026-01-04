@@ -270,6 +270,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <Link href="/projects" className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${isActive('/projects') && !isActive('/projects/') ? 'bg-primary text-primary-foreground' : 'hover:bg-sidebar-accent'}`}>
                   <LayoutGrid className="h-4 w-4" /> {!collapsed && <span>Mis Proyectos</span>}
                 </Link>
+                <Link href="/dashboard-global" className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${isActive('/dashboard-global') ? 'bg-primary text-primary-foreground' : 'hover:bg-sidebar-accent'}`}>
+                  <LayoutDashboard className="h-4 w-4" /> {!collapsed && <span>Dashboard Principal</span>}
+                </Link>
              </nav>
           </div>
 

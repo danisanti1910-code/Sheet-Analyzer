@@ -28,7 +28,7 @@ interface ChartBuilderProps {
   selectedColumns: string[];
   hideControls?: boolean;
   initialConfig?: SavedChart['chartConfig'] & { title?: string };
-  onSave?: (config: SavedChart['chartConfig'] & { name: string }, addToDashboard?: boolean) => void;
+  onSave?: (config: SavedChart['chartConfig'] & { name: string }, options: { addToProjectDashboard: boolean, addToGlobalDashboard: boolean }) => void;
   isEditing?: boolean;
 }
 
@@ -50,6 +50,7 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
   const [aggregation, setAggregation] = useState<AggregationType>((initialConfig?.aggregation as AggregationType) || 'none');
   const [chartTitle, setChartTitle] = useState(initialConfig?.title || '');
   const [isAddingToDashboard, setIsAddingToDashboard] = useState(false);
+  const [isAddingToGlobal, setIsAddingToGlobal] = useState(false);
   const [showLabels, setShowLabels] = useState(initialConfig?.showLabels || false);
   
   // Dialog State
@@ -183,7 +184,7 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
     setIsSaveDialogOpen(true);
   };
 
-  const confirmSave = (addToDashboard: boolean) => {
+  const confirmSave = () => {
     if (onSave) {
       onSave({
         name: saveName,
@@ -195,7 +196,10 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
         aggregation,
         showLabels,
         activeColorScheme
-      }, addToDashboard);
+      }, {
+        addToProjectDashboard: isAddingToDashboard,
+        addToGlobalDashboard: isAddingToGlobal
+      });
     }
     setIsSaveDialogOpen(false);
   };
@@ -223,10 +227,12 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
 
     const renderChartByType = () => {
       const pieKey = plotKeys[0];
+      const containerHeight = hideControls ? "100%" : 400;
+      
       switch (chartType) {
         case 'bar':
           return (
-            <ResponsiveContainer width="100%" height={400}>
+            <ResponsiveContainer width="100%" height={containerHeight}>
               <BarChart {...commonProps}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                 <XAxis dataKey={xAxis} tick={{fontSize: 10}} />
@@ -243,7 +249,7 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
           );
         case 'line':
           return (
-            <ResponsiveContainer width="100%" height={400}>
+            <ResponsiveContainer width="100%" height={containerHeight}>
               <LineChart {...commonProps}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                 <XAxis dataKey={xAxis} tick={{fontSize: 10}} />
@@ -260,7 +266,7 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
           );
         case 'area':
           return (
-            <ResponsiveContainer width="100%" height={400}>
+            <ResponsiveContainer width="100%" height={containerHeight}>
               <AreaChart {...commonProps}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                 <XAxis dataKey={xAxis} tick={{fontSize: 10}} />
@@ -277,7 +283,7 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
           );
         case 'pie':
           return (
-            <ResponsiveContainer width="100%" height={400}>
+            <ResponsiveContainer width="100%" height={containerHeight}>
               <PieChart>
                 <Pie
                   data={processedData.slice(0, 10)}
@@ -414,14 +420,39 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
                 placeholder="Ej. Ventas por mes"
               />
             </div>
-            <div className="bg-muted/40 p-4 rounded-lg">
-              <h4 className="font-medium text-sm mb-1">¿Te gustaría que esa gráfica se agregue al dashboard?</h4>
-              <p className="text-xs text-muted-foreground">Podrás visualizarla junto con otras métricas importantes de tu proyecto.</p>
+            <div className="bg-muted/40 p-4 rounded-lg space-y-4">
+              <div className="flex items-start space-x-3">
+                 <input 
+                    type="checkbox" 
+                    id="add-dashboard" 
+                    className="mt-1"
+                    checked={isAddingToDashboard}
+                    onChange={e => setIsAddingToDashboard(e.target.checked)}
+                 />
+                 <div className="space-y-1">
+                    <label htmlFor="add-dashboard" className="font-medium text-sm block cursor-pointer">Añadir al Dashboard del Proyecto</label>
+                    <p className="text-xs text-muted-foreground">Visualízala junto con otras métricas de este proyecto.</p>
+                 </div>
+              </div>
+
+              <div className="flex items-start space-x-3">
+                 <input 
+                    type="checkbox" 
+                    id="add-global" 
+                    className="mt-1"
+                    checked={isAddingToGlobal}
+                    onChange={e => setIsAddingToGlobal(e.target.checked)}
+                 />
+                 <div className="space-y-1">
+                    <label htmlFor="add-global" className="font-medium text-sm block cursor-pointer">Añadir al Dashboard Principal</label>
+                    <p className="text-xs text-muted-foreground">Fija esta gráfica en tu tablero global para acceso rápido.</p>
+                 </div>
+              </div>
             </div>
           </div>
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => confirmSave(false)}>Solo Guardar</Button>
-            <Button onClick={() => confirmSave(true)}>Subir al Dashboard</Button>
+            <Button variant="outline" onClick={() => setIsSaveDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={confirmSave}>Guardar Gráfica</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

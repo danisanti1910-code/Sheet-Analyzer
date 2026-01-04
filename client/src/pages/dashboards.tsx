@@ -5,7 +5,7 @@ import { InsightsPanel } from '@/components/insights-panel';
 import { SheetData } from '@/lib/sheet-utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Trash2, AlertCircle, Plus, Edit3, Settings2 } from 'lucide-react';
+import { Trash2, AlertCircle, Plus, Edit3, Settings2, LayoutDashboard } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
@@ -131,7 +131,7 @@ function DashboardChartWrapper({ chart, data }: { chart: SavedChart, data: Sheet
 }
 
 export default function Dashboards() {
-  const { activeProject, deleteChart, updateChart, activeProjectId } = useSheet();
+  const { activeProject, deleteChart, updateChart, activeProjectId, createChart, addToGlobalDashboard } = useSheet();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [tempName, setTempName] = useState("");
   const [, setLocation] = useLocation();
@@ -155,6 +155,20 @@ export default function Dashboards() {
 
   const handleNavigateToEdit = (chartId: string) => {
     setLocation(`/projects/${activeProjectId}/charts/${chartId}`);
+  };
+
+  const handleNewAnalysis = () => {
+     if (!activeProjectId) return;
+     // Create a new chart with default values
+     const newId = createChart(activeProjectId, {
+        chartType: 'bar',
+        xAxis: '',
+        yAxis: [],
+        selectedColumns: []
+     }, `Análisis ${activeProject.charts.length + 1}`, false);
+     
+     // Navigate to the new chart
+     setLocation(`/projects/${activeProjectId}/charts/${newId}`);
   };
 
   const layout = useMemo(() => {
@@ -200,8 +214,8 @@ export default function Dashboards() {
              <Button variant="outline" size="sm" onClick={() => window.print()} className="gap-2">
                  Imprimir PDF
              </Button>
-             <Button asChild variant="default" size="sm" className="gap-2">
-                <Link href={`/projects/${activeProjectId}/charts/new`}><Plus className="w-4 h-4" /> Nuevo Análisis</Link>
+             <Button onClick={handleNewAnalysis} variant="default" size="sm" className="gap-2">
+                <Plus className="w-4 h-4" /> Nuevo Análisis
              </Button>
           </div>
         </div>
@@ -243,6 +257,9 @@ export default function Dashboards() {
                         </div>
                       )}
                       <div className="flex items-center gap-1" onMouseDown={e => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => addToGlobalDashboard(activeProjectId!, chart.id)} title="Añadir al Dashboard Global">
+                          <LayoutDashboard className="w-4 h-4" />
+                        </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => handleNavigateToEdit(chart.id)}>
                           <Settings2 className="w-4 h-4" />
                         </Button>
