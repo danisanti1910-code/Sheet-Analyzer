@@ -94,7 +94,7 @@ export default function GlobalDashboard() {
       w: item.layout.w,
       h: item.layout.h,
       minW: 3,
-      minH: 3
+      minH: 2
     }));
   }, [globalDashboardItems]);
 

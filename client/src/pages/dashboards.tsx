@@ -179,7 +179,7 @@ export default function Dashboards() {
       w: chart.dashboardLayout?.w ?? 6,
       h: chart.dashboardLayout?.h ?? 4,
       minW: 3,
-      minH: 3
+      minH: 2
     })) || [];
   }, [activeProject.charts]);
 

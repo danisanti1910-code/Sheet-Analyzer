@@ -228,20 +228,36 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
 
     const renderChartByType = () => {
       const pieKey = plotKeys[0];
-      const containerHeight = hideControls ? "100%" : 400;
+      // Use 99% to prevent potential scrollbar flicker in some browsers
+      const containerHeight = hideControls ? "99%" : 400;
       
       switch (chartType) {
         case 'bar':
           return (
             <ResponsiveContainer width="100%" height={containerHeight}>
               <BarChart {...commonProps}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                <XAxis dataKey={xAxis} tick={{fontSize: 10}} />
-                <YAxis tick={{fontSize: 10}} tickFormatter={formatValue} />
-                <Tooltip formatter={formatValue} />
-                <Legend />
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} vertical={false} />
+                <XAxis 
+                  dataKey={xAxis} 
+                  tick={{fontSize: 10}} 
+                  tickLine={false} 
+                  axisLine={false}
+                  interval="preserveStartEnd"
+                />
+                <YAxis 
+                  tick={{fontSize: 10}} 
+                  tickFormatter={formatValue} 
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <Tooltip 
+                  formatter={formatValue} 
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                  cursor={{ fill: 'rgba(0,0,0,0.05)' }}
+                />
+                <Legend iconType="circle" wrapperStyle={{ paddingTop: '10px' }} />
                 {plotKeys.map((y, i) => (
-                  <Bar key={y} dataKey={y} fill={colors[i % colors.length]} radius={[4, 4, 0, 0]}>
+                  <Bar key={y} dataKey={y} fill={colors[i % colors.length]} radius={[4, 4, 0, 0]} maxBarSize={60}>
                     {showLabels && <LabelList dataKey={y} position="top" style={{fontSize: 10, fill: '#666'}} formatter={formatValue} />}
                   </Bar>
                 ))}
@@ -252,13 +268,35 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
           return (
             <ResponsiveContainer width="100%" height={containerHeight}>
               <LineChart {...commonProps}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                <XAxis dataKey={xAxis} tick={{fontSize: 10}} />
-                <YAxis tick={{fontSize: 10}} tickFormatter={formatValue} />
-                <Tooltip formatter={formatValue} />
-                <Legend />
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} vertical={false} />
+                <XAxis 
+                  dataKey={xAxis} 
+                  tick={{fontSize: 10}} 
+                  tickLine={false} 
+                  axisLine={false}
+                  interval="preserveStartEnd"
+                />
+                <YAxis 
+                  tick={{fontSize: 10}} 
+                  tickFormatter={formatValue} 
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <Tooltip 
+                   formatter={formatValue}
+                   contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                />
+                <Legend iconType="circle" wrapperStyle={{ paddingTop: '10px' }} />
                 {plotKeys.map((y, i) => (
-                  <Line key={y} type="monotone" dataKey={y} stroke={colors[i % colors.length]} strokeWidth={2} dot={processedData.length < 50}>
+                  <Line 
+                    key={y} 
+                    type="monotone" 
+                    dataKey={y} 
+                    stroke={colors[i % colors.length]} 
+                    strokeWidth={3} 
+                    dot={processedData.length < 30 ? { r: 4, strokeWidth: 0 } : false}
+                    activeDot={{ r: 6, strokeWidth: 0 }}
+                  >
                     {showLabels && <LabelList dataKey={y} position="top" style={{fontSize: 10, fill: '#666', marginBottom: 5}} formatter={formatValue} />}
                   </Line>
                 ))}
@@ -269,13 +307,35 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
           return (
             <ResponsiveContainer width="100%" height={containerHeight}>
               <AreaChart {...commonProps}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                <XAxis dataKey={xAxis} tick={{fontSize: 10}} />
-                <YAxis tick={{fontSize: 10}} tickFormatter={formatValue} />
-                <Tooltip formatter={formatValue} />
-                <Legend />
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} vertical={false} />
+                <XAxis 
+                  dataKey={xAxis} 
+                  tick={{fontSize: 10}} 
+                  tickLine={false} 
+                  axisLine={false}
+                  interval="preserveStartEnd"
+                />
+                <YAxis 
+                  tick={{fontSize: 10}} 
+                  tickFormatter={formatValue} 
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <Tooltip 
+                   formatter={formatValue}
+                   contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                />
+                <Legend iconType="circle" wrapperStyle={{ paddingTop: '10px' }} />
                 {plotKeys.map((y, i) => (
-                  <Area key={y} type="monotone" dataKey={y} fill={colors[i % colors.length]} stroke={colors[i % colors.length]} fillOpacity={0.3}>
+                  <Area 
+                    key={y} 
+                    type="monotone" 
+                    dataKey={y} 
+                    fill={colors[i % colors.length]} 
+                    stroke={colors[i % colors.length]} 
+                    fillOpacity={0.2}
+                    strokeWidth={2}
+                  >
                     {showLabels && <LabelList dataKey={y} position="top" style={{fontSize: 10, fill: '#666'}} formatter={formatValue} />}
                   </Area>
                 ))}
@@ -289,7 +349,8 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
                 <Pie
                   data={processedData.slice(0, 10)}
                   cx="50%" cy="50%"
-                  innerRadius={60} outerRadius={80}
+                  innerRadius={hideControls ? "50%" : 60} 
+                  outerRadius={hideControls ? "80%" : 80}
                   paddingAngle={5}
                   dataKey={pieKey}
                   nameKey={xAxis}
@@ -314,12 +375,47 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
                   } : false}
                 >
                   {processedData.slice(0, 10).map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                    <Cell key={`cell-${index}`} fill={colors[index % colors.length]} strokeWidth={2} stroke="#fff" />
                   ))}
                 </Pie>
-                <Tooltip formatter={formatValue} />
-                <Legend />
+                <Tooltip 
+                   formatter={formatValue}
+                   contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                />
+                <Legend iconType="circle" wrapperStyle={{ paddingTop: '10px' }} />
               </PieChart>
+            </ResponsiveContainer>
+          );
+        case 'scatter':
+          return (
+            <ResponsiveContainer width="100%" height={containerHeight}>
+              <ScatterChart {...commonProps}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                <XAxis 
+                  dataKey={xAxis} 
+                  type="number" 
+                  name={xAxis} 
+                  tick={{fontSize: 10}} 
+                  tickLine={false} 
+                  axisLine={false}
+                />
+                <YAxis 
+                  type="number" 
+                  dataKey={yAxis[0]} 
+                  name={yAxis[0]} 
+                  tick={{fontSize: 10}} 
+                  tickFormatter={formatValue} 
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <Tooltip cursor={{ strokeDasharray: '3 3' }} formatter={formatValue} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                <Legend iconType="circle" wrapperStyle={{ paddingTop: '10px' }} />
+                <Scatter name={xAxis} data={processedData} fill={colors[0]}>
+                   {processedData.map((entry: any, index: number) => (
+                     <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                   ))}
+                </Scatter>
+              </ScatterChart>
             </ResponsiveContainer>
           );
         default:
@@ -429,7 +525,7 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
           </div>
         </div>
       </CardHeader>
-      <CardContent className="flex-1 min-h-[400px] p-6" ref={chartRef}>
+      <CardContent className={`flex-1 p-4 ${hideControls ? 'min-h-0' : 'min-h-[400px]'}`} ref={chartRef}>
         {renderChart()}
       </CardContent>
 
