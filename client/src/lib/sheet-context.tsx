@@ -1,4 +1,7 @@
 import { SheetData, parseSheet } from '@/lib/sheet-utils';
+import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 export interface SavedChart {
   id: string;
@@ -15,11 +18,11 @@ export interface SavedChart {
     aggregation?: string;
     showLabels?: boolean;
     activeColorScheme?: string;
-    [key: string]: any; // Allow future extensibility
+    [key: string]: any;
   };
   dashboardLayout?: { x: number; y: number; w: number; h: number };
-  createdAt: number;
-  updatedAt: number;
+  createdAt: string | number;
+  updatedAt: string | number;
 }
 
 export interface GlobalDashboardItem {
@@ -35,7 +38,6 @@ export interface Project {
   sheetData: SheetData | null;
   charts: SavedChart[];
   sourceUrl?: string;
-  collaborators?: { email: string; role: 'viewer' | 'commenter' | 'editor' }[];
 }
 
 export interface User {
@@ -49,75 +51,88 @@ interface SheetContextType {
   projects: Project[];
   activeProjectId: string | null;
   setActiveProjectId: (id: string | null) => void;
-  createProject: (name: string) => string;
-  updateProject: (id: string, updates: Partial<Project>) => void;
-  deleteProject: (id: string) => void;
+  createProject: (name: string) => Promise<string>;
+  updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
   refreshProjectData: (id: string) => Promise<void>;
   
-  // Charts
-  createChart: (projectId: string, chartConfig: SavedChart['chartConfig'], name?: string, includeInsights?: boolean) => string;
-  updateChart: (chartId: string, updates: Partial<SavedChart>) => void;
-  deleteChart: (chartId: string) => void;
+  createChart: (projectId: string, chartConfig: SavedChart['chartConfig'], name?: string, includeInsights?: boolean) => Promise<string>;
+  updateChart: (chartId: string, updates: Partial<SavedChart>) => Promise<void>;
+  deleteChart: (chartId: string) => Promise<void>;
   getChart: (chartId: string) => SavedChart | undefined;
   
-  // Global Dashboard
   globalDashboardItems: GlobalDashboardItem[];
-  addToGlobalDashboard: (projectId: string, chartId: string) => void;
-  removeFromGlobalDashboard: (itemId: string) => void;
-  updateGlobalDashboardLayout: (items: GlobalDashboardItem[]) => void;
+  addToGlobalDashboard: (projectId: string, chartId: string) => Promise<void>;
+  removeFromGlobalDashboard: (itemId: string) => Promise<void>;
+  updateGlobalDashboardLayout: (items: GlobalDashboardItem[]) => Promise<void>;
   
-  // Auth mock
   user: User | null;
   login: (user: User) => void;
   logout: () => void;
 
-  // Computed for active project
   activeProject: Project | null;
+  isLoading: boolean;
 }
-
-import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
-import { useToast } from '@/hooks/use-toast';
 
 const SheetContext = createContext<SheetContextType | undefined>(undefined);
 
 export const SheetProvider = ({ children }: { children: ReactNode }) => {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [globalDashboardItems, setGlobalDashboardItems] = useState<GlobalDashboardItem[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: projectsData = [], isLoading } = useQuery({
+    queryKey: ['projects'],
+    queryFn: async () => {
+      const response = await fetch('/api/projects');
+      if (!response.ok) throw new Error('Failed to fetch projects');
+      return response.json();
+    }
+  });
+
+  const { data: chartsData = [] } = useQuery({
+    queryKey: ['charts'],
+    queryFn: async () => {
+      const chartsByProject: Record<string, SavedChart[]> = {};
+      for (const project of projectsData) {
+        const response = await fetch(`/api/projects/${project.id}/charts`);
+        if (response.ok) {
+          chartsByProject[project.id] = await response.json();
+        }
+      }
+      return chartsByProject;
+    },
+    enabled: projectsData.length > 0
+  });
+
+  const { data: globalDashboardItems = [] } = useQuery({
+    queryKey: ['globalDashboard'],
+    queryFn: async () => {
+      const response = await fetch('/api/global-dashboard');
+      if (!response.ok) throw new Error('Failed to fetch global dashboard');
+      return response.json();
+    }
+  });
+
+  const projects: Project[] = useMemo(() => {
+    if (!Array.isArray(projectsData)) return [];
+    return projectsData.map((p: any) => ({
+      ...p,
+      charts: (chartsData as Record<string, SavedChart[]>)[p.id] || []
+    }));
+  }, [projectsData, chartsData]);
 
   const activeProject = useMemo(() => 
     projects.find(p => p.id === activeProjectId) || null
   , [projects, activeProjectId]);
 
-  // Load state from localStorage on mount
   useEffect(() => {
     const savedUser = localStorage.getItem('sheet_analyzer_user');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
     }
-    const savedProjects = localStorage.getItem('sheet_analyzer_projects');
-    if (savedProjects) {
-      setProjects(JSON.parse(savedProjects));
-    }
-    const savedGlobalDashboard = localStorage.getItem('sheet_analyzer_global_dashboard');
-    if (savedGlobalDashboard) {
-        setGlobalDashboardItems(JSON.parse(savedGlobalDashboard));
-    }
   }, []);
-
-  // Persist projects whenever they change
-  useEffect(() => {
-    if (projects.length > 0) {
-      localStorage.setItem('sheet_analyzer_projects', JSON.stringify(projects));
-    }
-  }, [projects]);
-
-  // Persist global dashboard
-  useEffect(() => {
-    localStorage.setItem('sheet_analyzer_global_dashboard', JSON.stringify(globalDashboardItems));
-  }, [globalDashboardItems]);
 
   const login = (userData: User) => {
     setUser(userData);
@@ -129,88 +144,130 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('sheet_analyzer_user');
   };
 
-  const createProject = (name: string) => {
-    const newProject: Project = {
-      id: Math.random().toString(36).substring(7),
-      name,
-      sheetData: null,
-      charts: []
-    };
-    setProjects(prev => [...prev, newProject]);
-    setActiveProjectId(newProject.id);
-    return newProject.id;
+  const createProjectMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const response = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, sheetData: null })
+      });
+      if (!response.ok) throw new Error('Failed to create project');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    }
+  });
+
+  const createProject = async (name: string): Promise<string> => {
+    const project = await createProjectMutation.mutateAsync(name);
+    setActiveProjectId(project.id);
+    return project.id;
   };
 
-  const updateProject = (id: string, updates: Partial<Project>) => {
-    setProjects(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+  const updateProjectMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<Project> }) => {
+      const response = await fetch(`/api/projects/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+      if (!response.ok) throw new Error('Failed to update project');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    }
+  });
+
+  const updateProject = async (id: string, updates: Partial<Project>): Promise<void> => {
+    await updateProjectMutation.mutateAsync({ id, updates });
   };
 
-  const deleteProject = (id: string) => {
-    setProjects(prev => prev.filter(p => p.id !== id));
+  const deleteProjectMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Failed to delete project');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    }
+  });
+
+  const deleteProject = async (id: string): Promise<void> => {
+    await deleteProjectMutation.mutateAsync(id);
     if (activeProjectId === id) setActiveProjectId(null);
   };
 
-  const createChart = (projectId: string, chartConfig: SavedChart['chartConfig'], name?: string, includeInsights?: boolean) => {
-    const newChart: SavedChart = {
-      id: Math.random().toString(36).substring(7),
+  const createChartMutation = useMutation({
+    mutationFn: async (chart: any) => {
+      const response = await fetch('/api/charts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(chart)
+      });
+      if (!response.ok) throw new Error('Failed to create chart');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['charts'] });
+    }
+  });
+
+  const createChart = async (projectId: string, chartConfig: SavedChart['chartConfig'], name?: string, includeInsights?: boolean): Promise<string> => {
+    const existingCharts = projects.find(p => p.id === projectId)?.charts || [];
+    let maxY = 0;
+    existingCharts.forEach(c => {
+      if (c.dashboardLayout) {
+        maxY = Math.max(maxY, c.dashboardLayout.y + c.dashboardLayout.h);
+      }
+    });
+
+    const chart = await createChartMutation.mutateAsync({
       projectId,
       name: name || `Gráfica ${Date.now()}`,
       includeInsights: includeInsights || false,
       chartConfig,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      // Default layout position - find next available slot roughly
-      dashboardLayout: { x: 0, y: Infinity, w: 6, h: 4 } 
-    };
-
-    setProjects(prev => prev.map(p => {
-      if (p.id === projectId) {
-        // Simple layout collision avoidance strategy: put it at the bottom
-        // RGL usually handles this if y is Infinity, but let's be safe
-        const existingCharts = p.charts || [];
-        let maxY = 0;
-        existingCharts.forEach(c => {
-            if (c.dashboardLayout) {
-                maxY = Math.max(maxY, c.dashboardLayout.y + c.dashboardLayout.h);
-            }
-        });
-        
-        newChart.dashboardLayout = { x: 0, y: maxY, w: 6, h: 4 };
-
-        return { ...p, charts: [...existingCharts, newChart] };
-      }
-      return p;
-    }));
-
-    return newChart.id;
+      dashboardLayout: { x: 0, y: maxY, w: 6, h: 4 }
+    });
+    
+    return chart.id;
   };
 
-  const updateChart = (chartId: string, updates: Partial<SavedChart>) => {
-    setProjects(prev => prev.map(p => {
-      // Find project containing the chart
-      if (p.charts?.some(c => c.id === chartId)) {
-        return {
-          ...p,
-          charts: p.charts.map(c => c.id === chartId ? { ...c, ...updates, updatedAt: Date.now() } : c)
-        };
-      }
-      return p;
-    }));
+  const updateChartMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<SavedChart> }) => {
+      const response = await fetch(`/api/charts/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+      if (!response.ok) throw new Error('Failed to update chart');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['charts'] });
+    }
+  });
+
+  const updateChart = async (chartId: string, updates: Partial<SavedChart>): Promise<void> => {
+    await updateChartMutation.mutateAsync({ id: chartId, updates });
   };
 
-  const deleteChart = (chartId: string) => {
-    setProjects(prev => prev.map(p => {
-      if (p.charts?.some(c => c.id === chartId)) {
-        return {
-          ...p,
-          charts: p.charts.filter(c => c.id !== chartId)
-        };
-      }
-      return p;
-    }));
+  const deleteChartMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/charts/${id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Failed to delete chart');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['charts'] });
+    }
+  });
+
+  const deleteChart = async (chartId: string): Promise<void> => {
+    await deleteChartMutation.mutateAsync(chartId);
   };
 
-  const getChart = (chartId: string) => {
+  const getChart = (chartId: string): SavedChart | undefined => {
     for (const p of projects) {
       const chart = p.charts?.find(c => c.id === chartId);
       if (chart) return chart;
@@ -218,38 +275,69 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
     return undefined;
   };
 
-  const addToGlobalDashboard = (projectId: string, chartId: string) => {
-    // Check if already exists to avoid duplicates (optional, but good for now)
-    if (globalDashboardItems.some(item => item.projectId === projectId && item.chartId === chartId)) {
-        return; 
+  const addToGlobalDashboardMutation = useMutation({
+    mutationFn: async ({ projectId, chartId }: { projectId: string; chartId: string }) => {
+      let maxY = 0;
+      globalDashboardItems.forEach((item: GlobalDashboardItem) => {
+        maxY = Math.max(maxY, item.layout.y + item.layout.h);
+      });
+
+      const response = await fetch('/api/global-dashboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId,
+          chartId,
+          layout: { x: 0, y: maxY, w: 6, h: 4 }
+        })
+      });
+      if (!response.ok) throw new Error('Failed to add to global dashboard');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['globalDashboard'] });
+      toast({ title: "Añadido al Dashboard Principal", description: "La gráfica ahora es visible en el panel global." });
     }
+  });
 
-    const newItem: GlobalDashboardItem = {
-        id: Math.random().toString(36).substring(7),
-        projectId,
-        chartId,
-        layout: { x: 0, y: Infinity, w: 6, h: 4 }
-    };
-    
-    setGlobalDashboardItems(prev => {
-        // Find safe Y position
-        let maxY = 0;
-        prev.forEach(item => {
-            maxY = Math.max(maxY, item.layout.y + item.layout.h);
-        });
-        newItem.layout.y = maxY;
-        return [...prev, newItem];
-    });
-    
-    toast({ title: "Añadido al Dashboard Principal", description: "La gráfica ahora es visible en el panel global." });
+  const addToGlobalDashboard = async (projectId: string, chartId: string): Promise<void> => {
+    if (globalDashboardItems.some(item => item.projectId === projectId && item.chartId === chartId)) {
+      return;
+    }
+    await addToGlobalDashboardMutation.mutateAsync({ projectId, chartId });
   };
 
-  const removeFromGlobalDashboard = (itemId: string) => {
-    setGlobalDashboardItems(prev => prev.filter(item => item.id !== itemId));
+  const removeFromGlobalDashboardMutation = useMutation({
+    mutationFn: async (itemId: string) => {
+      const response = await fetch(`/api/global-dashboard/${itemId}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Failed to remove from global dashboard');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['globalDashboard'] });
+    }
+  });
+
+  const removeFromGlobalDashboard = async (itemId: string): Promise<void> => {
+    await removeFromGlobalDashboardMutation.mutateAsync(itemId);
   };
 
-  const updateGlobalDashboardLayout = (items: GlobalDashboardItem[]) => {
-      setGlobalDashboardItems(items);
+  const updateGlobalDashboardLayoutMutation = useMutation({
+    mutationFn: async (items: GlobalDashboardItem[]) => {
+      await Promise.all(items.map((item: GlobalDashboardItem) => 
+        fetch(`/api/global-dashboard/${item.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ layout: item.layout })
+        })
+      ));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['globalDashboard'] });
+    }
+  });
+
+  const updateGlobalDashboardLayout = async (items: GlobalDashboardItem[]): Promise<void> => {
+    await updateGlobalDashboardLayoutMutation.mutateAsync(items);
   };
 
   const refreshProjectData = async (projectId: string) => {
@@ -261,7 +349,7 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
       if (fetchUrl.includes('docs.google.com/spreadsheets')) {
         const idMatch = fetchUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
         if (idMatch && idMatch[1]) {
-            fetchUrl = `https://docs.google.com/spreadsheets/d/${idMatch[1]}/export?format=csv`;
+          fetchUrl = `https://docs.google.com/spreadsheets/d/${idMatch[1]}/export?format=csv`;
         }
       }
 
@@ -271,7 +359,7 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
       const file = new File([blob], "refreshed.csv", { type: "text/csv" });
       const newData = await parseSheet(file, true);
       
-      updateProject(projectId, { sheetData: newData });
+      await updateProject(projectId, { sheetData: newData });
       toast({ title: "Datos actualizados", description: "Las gráficas se han ajustado a los nuevos valores." });
     } catch (e) {
       toast({ title: "Error al actualizar", variant: "destructive" });
@@ -298,7 +386,8 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
       updateGlobalDashboardLayout,
       user,
       login,
-      logout
+      logout,
+      isLoading
     }}>
       {children}
     </SheetContext.Provider>

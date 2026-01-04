@@ -19,7 +19,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function FileUpload() {
-  const { activeProject, updateProject, activeProjectId, createProject, user, login } = useSheet();
+  const { activeProject, updateProject, activeProjectId, setActiveProjectId, createProject, user, login } = useSheet();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [isDragging, setIsDragging] = useState(false);
@@ -36,11 +36,9 @@ export function FileUpload() {
         const data = await parseSheet(action.data, headerMode);
         let targetId = activeProjectId;
         if (!targetId) {
-          targetId = createProject(`Proyecto ${action.data.name}`);
+          targetId = await createProject(`Proyecto ${action.data.name}`);
         }
-        updateProject(targetId || '', { sheetData: data });
-        // Update targetId for navigation
-        if (!activeProjectId) setActiveProjectId(targetId);
+        await updateProject(targetId || '', { sheetData: data });
         
         toast({ title: "Procesado con éxito" });
         setLocation(`/projects/${targetId}/charts/new`);

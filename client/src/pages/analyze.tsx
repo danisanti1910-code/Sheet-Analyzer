@@ -7,15 +7,12 @@ import { InsightsPanel } from '@/components/insights-panel';
 import { DataTable } from '@/components/data-table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
-import { AlertCircle, RefreshCw, AlertTriangle, UserCheck, Trash2, Edit3, Share2, UserPlus, Mail, Shield } from "lucide-react";
+import { AlertCircle, RefreshCw, AlertTriangle, UserCheck, Trash2, Edit3 } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { Link, useLocation, useRoute } from 'wouter';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { FileUpload } from '@/components/file-upload';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 
 // Wrapper to handle chart logic based on props
@@ -83,31 +80,35 @@ export function ChartBuilderWrapper({
       toast({ title: "Gráfica actualizada", description: "Los cambios se han guardado correctamente." });
     } else {
       // Create new
-      currentChartId = createChart(projectId, {
+      createChart(projectId, {
         ...chartConfig,
         selectedColumns
-      }, name, addToProjectDashboard);
-      
-      toast({ title: "Gráfica guardada", description: "Se ha creado una nueva gráfica en el proyecto." });
+      }, name, addToProjectDashboard).then(id => {
+        currentChartId = id;
+        
+        toast({ title: "Gráfica guardada", description: "Se ha creado una nueva gráfica en el proyecto." });
+        
+        // Handle Global Dashboard
+        if (addToGlobalDashboard && currentChartId) {
+          addToGlobalDashboardProp(projectId, currentChartId);
+        }
+        
+        if (addToProjectDashboard) {
+          setLocation(`/projects/${projectId}/dashboards`);
+        } else {
+          setLocation(`/projects/${projectId}/charts/${currentChartId}`);
+        }
+      });
+      return; // Early return since we're handling navigation in the promise
     }
 
-    // Handle Global Dashboard
-    // Use the function directly from scope, not destructuring from hook inside callback
+    // Handle Global Dashboard for existing charts
     if (addToGlobalDashboard && currentChartId) {
-        // We need to call the context method.
-        // Since we cannot call the hook here, and we already destructured `addToGlobalDashboard` from `useSheet` in the component body
-        // we can just use that.
         addToGlobalDashboardProp(projectId, currentChartId);
     }
     
-    // Force UI update via navigation/toast
-    // Navigation handles the refresh naturally in this app structure
-
     if (addToProjectDashboard) {
         setLocation(`/projects/${projectId}/dashboards`);
-    } else if (!chartId) {
-        // If it was a new chart, navigate to its edit URL to prevent "new" state overwrites
-        setLocation(`/projects/${projectId}/charts/${currentChartId}`);
     }
   };
 
@@ -138,9 +139,6 @@ export default function Analyze({ params }: { params: { projectId: string, chart
   const [filteredValues, setFilteredValues] = useState<Record<string, string[]>>({});
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempName, setTempName] = useState("");
-  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
-  const [shareEmail, setShareEmail] = useState("");
-  const [shareRole, setShareRole] = useState<'viewer' | 'commenter' | 'editor'>('viewer');
 
   // Handle URL params
   const projectId = params?.projectId;
@@ -159,23 +157,9 @@ export default function Analyze({ params }: { params: { projectId: string, chart
   }, [activeProject]);
 
   const handleSelectView = (view: any) => {
-    // This function might be deprecated or needs to navigate
     if (view.id) {
        setLocation(`/projects/${projectId}/charts/${view.id}`);
     }
-  };
-
-  const handleAddCollaborator = () => {
-    if (!shareEmail) return;
-    const currentCollaborators = activeProject?.collaborators || [];
-    if (currentCollaborators.some(c => c.email === shareEmail)) {
-        toast({ title: "El usuario ya es colaborador", variant: "destructive" });
-        return;
-    }
-    const updated = [...currentCollaborators, { email: shareEmail, role: shareRole }];
-    updateProject(projectId, { collaborators: updated });
-    setShareEmail("");
-    toast({ title: "Colaborador invitado", description: `Se ha invitado a ${shareEmail} como ${shareRole}.` });
   };
 
   useEffect(() => {
@@ -349,74 +333,6 @@ export default function Analyze({ params }: { params: { projectId: string, chart
                 <RefreshCw className="h-3 w-3" /> Actualizar desde fuente
               </Button>
             )}
-
-            <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2 ml-2">
-                  <Share2 className="h-3.5 w-3.5" /> Compartir
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[460px]">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <UserPlus className="h-5 w-5 text-primary" />
-                    Compartir Proyecto
-                  </DialogTitle>
-                </DialogHeader>
-                <div className="space-y-6 py-4">
-                  <div className="flex items-end gap-3">
-                    <div className="flex-1 space-y-2">
-                      <Label>Invitar por correo</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input 
-                          placeholder="ejemplo@correo.com" 
-                          className="pl-9"
-                          value={shareEmail}
-                          onChange={e => setShareEmail(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div className="w-[140px] space-y-2">
-                      <Label>Permisos</Label>
-                      <Select value={shareRole} onValueChange={(v: any) => setShareRole(v)}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="viewer">Puede ver</SelectItem>
-                          <SelectItem value="commenter">Puede comentar</SelectItem>
-                          <SelectItem value="editor">Puede editar</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button onClick={handleAddCollaborator}>Invitar</Button>
-                  </div>
-
-                  <div className="space-y-3">
-                    <h4 className="text-sm font-medium flex items-center gap-2">
-                      <Shield className="h-4 w-4 text-muted-foreground" />
-                      Personas con acceso
-                    </h4>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between text-sm p-2 rounded-lg bg-muted/30 border">
-                        <div className="flex flex-col">
-                          <span className="font-medium">{user.firstName} {user.lastName} (Tú)</span>
-                          <span className="text-xs text-muted-foreground">{user.email}</span>
-                        </div>
-                        <span className="text-xs font-semibold uppercase text-primary bg-primary/10 px-2 py-0.5 rounded">Propietario</span>
-                      </div>
-                      {(activeProject.collaborators || []).map((collab, i) => (
-                        <div key={i} className="flex items-center justify-between text-sm p-2 rounded-lg border">
-                          <span className="text-muted-foreground">{collab.email}</span>
-                          <span className="text-xs text-muted-foreground capitalize">{collab.role}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
           </div>
           
           {duplicates.length > ignoredDuplicates.size && (
