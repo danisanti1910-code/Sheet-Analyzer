@@ -180,8 +180,9 @@ export default function Dashboards() {
       y: chart.dashboardLayout?.y ?? Math.floor(index / 2) * 4,
       w: chart.dashboardLayout?.w ?? 6,
       h: chart.dashboardLayout?.h ?? 4,
-      minW: 3,
-      minH: 2
+      minW: 2,
+      minH: 2,
+      maxW: GRID_COLS
     })) || [];
   }, [activeProject.charts]);
 

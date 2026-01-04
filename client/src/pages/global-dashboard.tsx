@@ -98,8 +98,9 @@ export default function GlobalDashboard() {
       y: item.layout.y ?? index * 4,
       w: item.layout.w ?? 6,
       h: item.layout.h ?? 4,
-      minW: 3,
-      minH: 2
+      minW: 2,
+      minH: 2,
+      maxW: GRID_COLS
     }));
   }, [globalDashboardItems]);
 
