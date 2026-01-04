@@ -25,13 +25,17 @@ export default function Projects() {
 
   if (!user) return null;
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (newProjectName.trim()) {
-      const newId = createProject(newProjectName);
-      setNewProjectName("");
-      setIsDialogOpen(false);
-      // Navigate to analysis/new chart immediately
-      setLocation(`/projects/${newId}/charts/new`);
+      try {
+        const newId = await createProject(newProjectName);
+        setNewProjectName("");
+        setIsDialogOpen(false);
+        // Navigate to analysis/new chart immediately
+        setLocation(`/projects/${newId}/charts/new`);
+      } catch (error) {
+        console.error('Failed to create project:', error);
+      }
     }
   };
 
