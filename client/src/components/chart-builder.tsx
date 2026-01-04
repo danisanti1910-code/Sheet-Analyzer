@@ -182,13 +182,25 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
 
   const openSaveDialog = () => {
     setSaveName(chartTitle || `Gráfico de ${xAxis}`);
+    setSaveError("");
     setIsSaveDialogOpen(true);
   };
 
+  const [saveError, setSaveError] = useState("");
+
   const confirmSave = () => {
+    const trimmedName = saveName.trim();
+    
+    if (!trimmedName) {
+      setSaveError("El nombre de la gráfica es obligatorio");
+      return;
+    }
+    
+    setSaveError("");
+    
     if (onSave) {
       onSave({
-        name: saveName,
+        name: trimmedName,
         chartType,
         xAxis,
         yAxis: yAxis.length > 0 ? yAxis : ['count'],
@@ -540,9 +552,11 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
               <Input 
                 id="chart-name" 
                 value={saveName} 
-                onChange={(e) => setSaveName(e.target.value)} 
+                onChange={(e) => { setSaveName(e.target.value); setSaveError(""); }} 
                 placeholder="Ej. Ventas por mes"
+                className={saveError ? "border-destructive" : ""}
               />
+              {saveError && <p className="text-xs text-destructive">{saveError}</p>}
             </div>
             <div className="bg-muted/40 p-4 rounded-lg space-y-4">
               <div className="flex items-start space-x-3">

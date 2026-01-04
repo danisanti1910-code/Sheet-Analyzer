@@ -61,15 +61,15 @@ export function ChartBuilderWrapper({
     }
   }, [chartId, activeProject?.id]);
 
-  const handleSave = (config: SavedChart['chartConfig'] & { name: string }, options: { addToProjectDashboard: boolean, addToGlobalDashboard: boolean }) => {
+  const handleSave = async (config: SavedChart['chartConfig'] & { name: string }, options: { addToProjectDashboard: boolean, addToGlobalDashboard: boolean }) => {
     const { name, ...chartConfig } = config;
     const { addToProjectDashboard, addToGlobalDashboard } = options;
     
-    let currentChartId = chartId;
+    let savedChartId = chartId;
 
-    if (currentChartId) {
-      // Update existing
-      updateChart(currentChartId, {
+    if (savedChartId) {
+      // Update existing chart
+      await updateChart(savedChartId, {
         name,
         includeInsights: addToProjectDashboard ? true : undefined,
         chartConfig: {
@@ -78,37 +78,38 @@ export function ChartBuilderWrapper({
         }
       });
       toast({ title: "Gráfica actualizada", description: "Los cambios se han guardado correctamente." });
+      
+      // Handle Global Dashboard for existing charts
+      if (addToGlobalDashboard) {
+        addToGlobalDashboardProp(projectId, savedChartId);
+      }
+      
+      // Navigate to dashboard if checkbox was checked, otherwise stay on current chart
+      if (addToProjectDashboard) {
+        setLocation(`/projects/${projectId}/dashboards`);
+      }
+      // No navigation needed when already viewing this chart
     } else {
-      // Create new
-      createChart(projectId, {
+      // Create new chart
+      const newId = await createChart(projectId, {
         ...chartConfig,
         selectedColumns
-      }, name, addToProjectDashboard).then(id => {
-        currentChartId = id;
-        
-        toast({ title: "Gráfica guardada", description: "Se ha creado una nueva gráfica en el proyecto." });
-        
-        // Handle Global Dashboard
-        if (addToGlobalDashboard && currentChartId) {
-          addToGlobalDashboardProp(projectId, currentChartId);
-        }
-        
-        if (addToProjectDashboard) {
-          setLocation(`/projects/${projectId}/dashboards`);
-        } else {
-          setLocation(`/projects/${projectId}/charts/${currentChartId}`);
-        }
-      });
-      return; // Early return since we're handling navigation in the promise
-    }
-
-    // Handle Global Dashboard for existing charts
-    if (addToGlobalDashboard && currentChartId) {
-        addToGlobalDashboardProp(projectId, currentChartId);
-    }
-    
-    if (addToProjectDashboard) {
+      }, name, addToProjectDashboard);
+      
+      savedChartId = newId;
+      toast({ title: "Gráfica guardada", description: "Se ha creado una nueva gráfica en el proyecto." });
+      
+      // Handle Global Dashboard
+      if (addToGlobalDashboard && savedChartId) {
+        addToGlobalDashboardProp(projectId, savedChartId);
+      }
+      
+      // Navigate: to dashboard if checkbox checked, otherwise to the new chart view
+      if (addToProjectDashboard) {
         setLocation(`/projects/${projectId}/dashboards`);
+      } else {
+        setLocation(`/projects/${projectId}/charts/${savedChartId}`);
+      }
     }
   };
 

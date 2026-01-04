@@ -301,7 +301,7 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
   });
 
   const addToGlobalDashboard = async (projectId: string, chartId: string): Promise<void> => {
-    if (globalDashboardItems.some(item => item.projectId === projectId && item.chartId === chartId)) {
+    if (globalDashboardItems.some((item: GlobalDashboardItem) => item.projectId === projectId && item.chartId === chartId)) {
       return;
     }
     await addToGlobalDashboardMutation.mutateAsync({ projectId, chartId });

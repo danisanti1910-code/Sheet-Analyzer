@@ -8,13 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Trash2, AlertCircle, Settings2, ExternalLink, PanelRight, PanelRightClose } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import React, { useMemo } from 'react';
-import * as RGL from 'react-grid-layout';
+import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
-const Responsive = RGL.Responsive || (RGL as any).default?.Responsive || (RGL as any).default;
-const WidthProvider = RGL.WidthProvider || (RGL as any).default?.WidthProvider;
-const ResponsiveGridLayout = WidthProvider ? WidthProvider(Responsive) : Responsive;
+const ResponsiveGridLayout = WidthProvider(Responsive);
 
 function GlobalDashboardChartWrapper({ item, project, chart }: { item: GlobalDashboardItem, project: Project, chart: SavedChart }) {
   const data = project.sheetData;
@@ -98,9 +96,9 @@ export default function GlobalDashboard() {
     }));
   }, [globalDashboardItems]);
 
-  const handleLayoutChange = (currentLayout: any[]) => {
+  const handleLayoutChange = (currentLayout: readonly any[], layouts: any) => {
     const newItems = globalDashboardItems.map(item => {
-        const l = currentLayout.find(l => l.i === item.id);
+        const l = (currentLayout as any[]).find(l => l.i === item.id);
         if (l) {
             return {
                 ...item,
