@@ -5,7 +5,7 @@ import { InsightsPanel } from '@/components/insights-panel';
 import { SheetData } from '@/lib/sheet-utils';
 import { CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Trash2, AlertCircle, Settings2, ExternalLink } from 'lucide-react';
+import { Trash2, AlertCircle, Settings2, ExternalLink, PanelRight, PanelRightClose } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import React, { useMemo } from 'react';
 import * as RGL from 'react-grid-layout';
@@ -83,7 +83,7 @@ function GlobalDashboardChartWrapper({ item, project, chart }: { item: GlobalDas
 }
 
 export default function GlobalDashboard() {
-  const { globalDashboardItems, projects, removeFromGlobalDashboard, updateGlobalDashboardLayout } = useSheet();
+  const { globalDashboardItems, projects, removeFromGlobalDashboard, updateGlobalDashboardLayout, updateChart } = useSheet();
   const [, setLocation] = useLocation();
 
   const layout = useMemo(() => {
@@ -166,6 +166,15 @@ export default function GlobalDashboard() {
                           </span>
                         </div>
                         <div className="flex items-center gap-1" onMouseDown={e => e.stopPropagation()}>
+                          <Button 
+                             variant="ghost" 
+                             size="icon" 
+                             className={`h-7 w-7 ${chart.includeInsights ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary'}`}
+                             onClick={() => updateChart(chart.id, { includeInsights: !chart.includeInsights })}
+                             title={chart.includeInsights ? "Ocultar Insights" : "Mostrar Insights"}
+                          >
+                            {chart.includeInsights ? <PanelRightClose className="w-4 h-4" /> : <PanelRight className="w-4 h-4" />}
+                          </Button>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" asChild>
                              <Link href={`/projects/${project.id}/charts/${chart.id}`}>
                                 <ExternalLink className="w-4 h-4" />
