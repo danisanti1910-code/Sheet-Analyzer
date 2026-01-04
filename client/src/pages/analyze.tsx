@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useSheet } from '@/lib/sheet-context';
+import { useSheet, SavedChart } from '@/lib/sheet-context';
 import { Layout } from '@/components/layout';
 import { ColumnSidebar } from '@/components/column-sidebar';
 import { ChartBuilder } from '@/components/chart-builder';
@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { AlertCircle, RefreshCw, AlertTriangle, UserCheck, Trash2, Edit3, Share2, UserPlus, Mail, Shield } from "lucide-react";
 import { Button } from '@/components/ui/button';
-import { Link, useLocation } from 'wouter';
+import { Link, useLocation, useRoute } from 'wouter';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { FileUpload } from '@/components/file-upload';
@@ -18,58 +18,124 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 
-export function ChartBuilderWrapper({ data, selectedColumns, setSelectedColumns, setFilteredValues }: { data: any, selectedColumns: string[], setSelectedColumns: (cols: string[]) => void, setFilteredValues: (vals: any) => void }) {
-  const [search] = useLocation();
-  const { activeProject } = useSheet();
+// Wrapper to handle chart logic based on props
+export function ChartBuilderWrapper({ 
+  data, 
+  selectedColumns, 
+  setSelectedColumns, 
+  setFilteredValues,
+  projectId,
+  chartId
+}: { 
+  data: any, 
+  selectedColumns: string[], 
+  setSelectedColumns: (cols: string[]) => void, 
+  setFilteredValues: (vals: any) => void,
+  projectId: string,
+  chartId?: string
+}) {
+  const { getChart, createChart, updateChart, activeProject } = useSheet();
   const [initialConfig, setInitialConfig] = useState<any>(null);
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   useEffect(() => {
-    const params = new URLSearchParams(search.split('?')[1]);
-    const viewId = params.get('view');
-    if (viewId && activeProject) {
-      const view = activeProject.savedViews.find(v => v.id === viewId);
-      if (view) {
+    if (chartId && activeProject) {
+      const chart = getChart(chartId);
+      if (chart) {
         // Force state updates to sync with the view
-        setSelectedColumns([...view.selectedColumns]);
-        if (view.filteredValues) {
-          setFilteredValues({ ...view.filteredValues });
+        setSelectedColumns([...chart.chartConfig.selectedColumns]);
+        if (chart.chartConfig.filteredValues) {
+          setFilteredValues({ ...chart.chartConfig.filteredValues });
         }
         setInitialConfig({
-          ...view,
-          title: view.name
+          ...chart.chartConfig,
+          title: chart.name
         });
       }
     } else {
-      setSelectedColumns([]);
-      setFilteredValues({});
-      setInitialConfig(null);
+      // New chart - reset if needed, but only on mount/id change
+      // Don't reset if we are just typing in the builder
+      if (!initialConfig) {
+        setSelectedColumns([]);
+        setFilteredValues({});
+        setInitialConfig(null);
+      }
     }
-  }, [search, activeProject?.id]);
+  }, [chartId, activeProject?.id]);
 
-  return <ChartBuilder key={JSON.stringify(initialConfig)} data={data} selectedColumns={selectedColumns} initialConfig={initialConfig} />;
+  const handleSave = (config: SavedChart['chartConfig'] & { name: string }) => {
+    const { name, ...chartConfig } = config;
+    
+    if (chartId) {
+      // Update existing
+      updateChart(chartId, {
+        name,
+        chartConfig: {
+          ...chartConfig,
+          // Ensure we save current state
+          selectedColumns, 
+          // Add filters if needed
+        }
+      });
+      toast({ title: "Gráfica actualizada", description: "Los cambios se han guardado correctamente." });
+    } else {
+      // Create new
+      const newId = createChart(projectId, {
+        ...chartConfig,
+        selectedColumns
+      });
+      toast({ title: "Gráfica guardada", description: "Se ha creado una nueva gráfica en el proyecto." });
+      // Navigate to edit mode
+      setLocation(`/projects/${projectId}/charts/${newId}`);
+    }
+  };
+
+  return (
+    <ChartBuilder 
+      key={chartId || 'new'} 
+      data={data} 
+      selectedColumns={selectedColumns} 
+      initialConfig={initialConfig} 
+      onSave={handleSave}
+      isEditing={!!chartId}
+    />
+  );
 }
 
-export default function Analyze() {
-  const { activeProject, updateProject, refreshProjectData, activeProjectId, user } = useSheet();
-  const [search, setLocation] = useLocation();
+export default function Analyze({ params }: { params: { projectId: string, chartId?: string } }) {
+  const { activeProject, setActiveProjectId, updateProject, refreshProjectData, user } = useSheet();
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
   const [filteredValues, setFilteredValues] = useState<Record<string, string[]>>({});
   const [isEditingName, setIsEditingName] = useState(false);
-  const [tempName, setTempName] = useState(activeProject?.name || "");
+  const [tempName, setTempName] = useState("");
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [shareEmail, setShareEmail] = useState("");
   const [shareRole, setShareRole] = useState<'viewer' | 'commenter' | 'editor'>('viewer');
 
-  const handleSelectView = (view: any) => {
-    setSelectedColumns(view.selectedColumns);
-    if (view.filteredValues) {
-      setFilteredValues(view.filteredValues);
+  // Handle URL params
+  const projectId = params?.projectId;
+  const chartId = params?.chartId;
+
+  useEffect(() => {
+    if (projectId && (!activeProject || activeProject.id !== projectId)) {
+      setActiveProjectId(projectId);
     }
-    toast({
-      title: `Vista cargada: ${view.name}`,
-      description: "Se han restaurado las variables y configuraciones de esta gráfica.",
-    });
+  }, [projectId, activeProject, setActiveProjectId]);
+
+  useEffect(() => {
+    if (activeProject) {
+      setTempName(activeProject.name);
+    }
+  }, [activeProject]);
+
+  const handleSelectView = (view: any) => {
+    // This function might be deprecated or needs to navigate
+    if (view.id) {
+       setLocation(`/projects/${projectId}/charts/${view.id}`);
+    }
   };
 
   const handleAddCollaborator = () => {
@@ -80,7 +146,7 @@ export default function Analyze() {
         return;
     }
     const updated = [...currentCollaborators, { email: shareEmail, role: shareRole }];
-    updateProject(activeProjectId!, { collaborators: updated });
+    updateProject(projectId, { collaborators: updated });
     setShareEmail("");
     toast({ title: "Colaborador invitado", description: `Se ha invitado a ${shareEmail} como ${shareRole}.` });
   };
@@ -187,7 +253,7 @@ export default function Analyze() {
 
   if (!user) return null;
 
-  if (!activeProject) {
+  if (!projectId) {
     return (
       <Layout>
         <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
@@ -199,7 +265,7 @@ export default function Analyze() {
     );
   }
 
-  if (!activeProject.sheetData) {
+  if (activeProject && !activeProject.sheetData) {
     return (
       <Layout>
         <div className="p-8 max-w-4xl mx-auto space-y-8">
@@ -213,20 +279,24 @@ export default function Analyze() {
     );
   }
 
+  if (!activeProject) return null; // Loading state ideally
+
   const handleUpdateName = () => {
-    updateProject(activeProjectId!, { name: tempName });
+    updateProject(projectId, { name: tempName });
     setIsEditingName(false);
   };
 
   const handleRemoveDuplicate = (index: number) => {
     const newRows = [...activeProject.sheetData!.rows];
     newRows.splice(index, 1);
-    updateProject(activeProjectId!, { 
+    updateProject(projectId, { 
         sheetData: { ...activeProject.sheetData!, rows: newRows, rowCount: newRows.length } 
     });
   };
 
   const displayData = filteredData || activeProject.sheetData;
+
+  if (!displayData) return null;
 
   return (
     <Layout>
@@ -248,7 +318,7 @@ export default function Analyze() {
             )}
             
             {activeProject.sourceUrl && (
-              <Button variant="outline" size="sm" className="gap-2" onClick={() => refreshProjectData(activeProjectId!)}>
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => refreshProjectData(projectId)}>
                 <RefreshCw className="h-3 w-3" /> Actualizar desde fuente
               </Button>
             )}
@@ -359,6 +429,8 @@ export default function Analyze() {
                               selectedColumns={selectedColumns} 
                               setSelectedColumns={setSelectedColumns}
                               setFilteredValues={setFilteredValues}
+                              projectId={projectId}
+                              chartId={chartId}
                             />
                         </div>
                         <div className="w-full xl:w-[400px] shrink-0">

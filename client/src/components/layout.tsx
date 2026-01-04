@@ -33,21 +33,22 @@ import { useToast } from "@/hooks/use-toast";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
-  const { projects, activeProjectId, setActiveProjectId, createProject, deleteProject, deleteView, user, login, logout, activeProject } = useSheet();
+  const { projects, activeProjectId, setActiveProjectId, createProject, deleteProject, deleteChart, user, login, logout, activeProject } = useSheet();
   const [collapsed, setCollapsed] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const { toast } = useToast();
 
-  const isActive = (path: string) => location === path;
+  const isActive = (path: string) => location.startsWith(path);
 
   const handleCreateProject = () => {
     if (newProjectName.trim()) {
       createProject(newProjectName);
       setNewProjectName("");
       setIsDialogOpen(false);
-      setLocation("/analyze");
+      // We will redirect to projects list or specific project logic
+      setLocation("/projects");
     }
   };
 
@@ -266,7 +267,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
           <div className="px-3 mb-2">
              <nav className="space-y-1">
-                <Link href="/projects" className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${isActive('/projects') ? 'bg-primary text-primary-foreground' : 'hover:bg-sidebar-accent'}`}>
+                <Link href="/projects" className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${isActive('/projects') && !isActive('/projects/') ? 'bg-primary text-primary-foreground' : 'hover:bg-sidebar-accent'}`}>
                   <LayoutGrid className="h-4 w-4" /> {!collapsed && <span>Mis Proyectos</span>}
                 </Link>
              </nav>
@@ -276,10 +277,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <div className="px-3 mt-4 pt-4 border-t">
               {!collapsed && <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 px-3">{activeProject?.name || "Proyecto Activo"}</p>}
               <nav className="space-y-1">
-                  <Link href="/analyze" className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${isActive('/analyze') ? 'bg-primary text-primary-foreground' : 'hover:bg-sidebar-accent'}`}>
-                    <BarChart3 className="h-4 w-4" /> {!collapsed && <span>Análisis</span>}
+                  <Link href={`/projects/${activeProjectId}/charts/new`} className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${isActive(`/projects/${activeProjectId}/charts/new`) ? 'bg-primary text-primary-foreground' : 'hover:bg-sidebar-accent'}`}>
+                    <BarChart3 className="h-4 w-4" /> {!collapsed && <span>Análisis / Nueva Gráfica</span>}
                   </Link>
-                  <Link href="/dashboards" className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${isActive('/dashboards') ? 'bg-primary text-primary-foreground' : 'hover:bg-sidebar-accent'}`}>
+                  <Link href={`/projects/${activeProjectId}/dashboards`} className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${isActive(`/projects/${activeProjectId}/dashboards`) ? 'bg-primary text-primary-foreground' : 'hover:bg-sidebar-accent'}`}>
                     <LayoutDashboard className="h-4 w-4" /> {!collapsed && <span>Dashboards</span>}
                   </Link>
               </nav>
@@ -289,18 +290,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <div className="px-3 mt-4 pt-4 border-t">
             {!collapsed && <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 px-3">Gráficas del Proyecto</p>}
             <div className="space-y-1">
-              {activeProject?.savedViews.map(view => (
-                <div key={view.id} className="group flex items-center gap-1">
-                  <Button 
-                    variant="ghost"
-                    className={`flex-1 justify-start gap-3 h-9 px-3`}
-                    onClick={() => {
-                      setLocation(`/analyze?view=${view.id}`);
-                    }}
-                  >
+              {activeProject?.charts?.map(chart => (
+                <div key={chart.id} className="group flex items-center gap-1">
+                  <Link href={`/projects/${activeProjectId}/charts/${chart.id}`} className={`flex-1 flex items-center gap-3 h-9 px-3 rounded-lg text-xs hover:bg-muted ${isActive(`/projects/${activeProjectId}/charts/${chart.id}`) ? 'bg-muted font-medium' : ''}`}>
                     <BarChart3 className={`h-4 w-4 shrink-0 text-primary/70`} />
-                    {!collapsed && <span className="truncate text-xs">{view.name}</span>}
-                  </Button>
+                    {!collapsed && <span className="truncate">{chart.name}</span>}
+                  </Link>
                   {!collapsed && (
                     <Button
                       variant="ghost"
@@ -309,7 +304,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       onClick={(e) => {
                         e.stopPropagation();
                         if (confirm('¿Eliminar gráfica?')) {
-                          deleteView(view.id);
+                          deleteChart(chart.id);
                         }
                       }}
                     >
@@ -318,7 +313,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   )}
                 </div>
               ))}
-              {(!activeProject || activeProject.savedViews.length === 0) && !collapsed && (
+              {(!activeProject || !activeProject.charts || activeProject.charts.length === 0) && !collapsed && (
                 <p className="px-3 text-[10px] text-muted-foreground italic">No hay gráficas guardadas</p>
               )}
             </div>

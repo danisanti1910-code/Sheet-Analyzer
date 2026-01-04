@@ -2,12 +2,11 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Hash, Calendar, Type, ToggleLeft, Filter, BarChart3, Trash2 } from "lucide-react";
+import { Search, Hash, Calendar, Type, ToggleLeft, Filter } from "lucide-react";
 import { SheetData } from "@/lib/sheet-utils";
 import React from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { useSheet } from "@/lib/sheet-context";
 
 interface ColumnSidebarProps {
   data: SheetData;
@@ -15,16 +14,15 @@ interface ColumnSidebarProps {
   onSelectionChange: (cols: string[]) => void;
   filteredValues: Record<string, string[]>;
   onFilterChange: (col: string, values: string[]) => void;
-  onSelectView?: (view: any) => void;
+  onSelectView?: (view: any) => void; // Keeping for compatibility or refactor if needed
 }
 
-export function ColumnSidebar({ data, selectedColumns, onSelectionChange, filteredValues, onFilterChange, onSelectView }: ColumnSidebarProps) {
+export function ColumnSidebar({ data, selectedColumns, onSelectionChange, filteredValues, onFilterChange }: ColumnSidebarProps) {
   const [searchTerm, setSearchTerm] = React.useState("");
-  const { activeProject, deleteView } = useSheet();
 
-  const filteredColumns = data.columns.filter(col => 
+  const filteredColumns = data?.columns.filter(col => 
     col.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ) || [];
 
   const toggleColumn = (col: string) => {
     if (selectedColumns.includes(col)) {
@@ -51,6 +49,8 @@ export function ColumnSidebar({ data, selectedColumns, onSelectionChange, filter
       default: return 'text-slate-500 bg-slate-50 dark:bg-slate-900/50';
     }
   };
+
+  if (!data) return null;
 
   return (
     <div className="w-full h-full flex flex-col border-r bg-sidebar">

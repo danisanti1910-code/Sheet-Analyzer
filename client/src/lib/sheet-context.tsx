@@ -1,25 +1,31 @@
 import { SheetData, parseSheet } from '@/lib/sheet-utils';
 
-export interface SavedView {
+export interface SavedChart {
   id: string;
+  projectId: string;
   name: string;
-  chartType: any;
-  xAxis: string;
-  yAxis: string[];
-  selectedColumns: string[];
-  filteredValues?: Record<string, string[]>;
-  colorScheme?: string[];
-  aggregation?: string;
-  showLabels?: boolean;
-  activeColorScheme?: string;
-  timestamp: number;
+  chartConfig: {
+    chartType: any;
+    xAxis: string;
+    yAxis: string[];
+    selectedColumns: string[];
+    filteredValues?: Record<string, string[]>;
+    colorScheme?: string[];
+    aggregation?: string;
+    showLabels?: boolean;
+    activeColorScheme?: string;
+    [key: string]: any; // Allow future extensibility
+  };
+  dashboardLayout?: { x: number; y: number; w: number; h: number };
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface Project {
   id: string;
   name: string;
   sheetData: SheetData | null;
-  savedViews: SavedView[];
+  charts: SavedChart[];
   sourceUrl?: string;
   collaborators?: { email: string; role: 'viewer' | 'commenter' | 'editor' }[];
 }
@@ -40,6 +46,12 @@ interface SheetContextType {
   deleteProject: (id: string) => void;
   refreshProjectData: (id: string) => Promise<void>;
   
+  // Charts
+  createChart: (projectId: string, chartConfig: SavedChart['chartConfig']) => string;
+  updateChart: (chartId: string, updates: Partial<SavedChart>) => void;
+  deleteChart: (chartId: string) => void;
+  getChart: (chartId: string) => SavedChart | undefined;
+  
   // Auth mock
   user: User | null;
   login: (user: User) => void;
@@ -47,9 +59,6 @@ interface SheetContextType {
 
   // Computed for active project
   activeProject: Project | null;
-  saveView: (view: Omit<SavedView, 'id' | 'timestamp'>) => void;
-  deleteView: (id: string) => void;
-  updateViewName: (viewId: string, name: string) => void;
 }
 
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
@@ -67,6 +76,25 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
     projects.find(p => p.id === activeProjectId) || null
   , [projects, activeProjectId]);
 
+  // Load state from localStorage on mount
+  useEffect(() => {
+    const savedUser = localStorage.getItem('sheet_analyzer_user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+    const savedProjects = localStorage.getItem('sheet_analyzer_projects');
+    if (savedProjects) {
+      setProjects(JSON.parse(savedProjects));
+    }
+  }, []);
+
+  // Persist projects whenever they change
+  useEffect(() => {
+    if (projects.length > 0) {
+      localStorage.setItem('sheet_analyzer_projects', JSON.stringify(projects));
+    }
+  }, [projects]);
+
   const login = (userData: User) => {
     setUser(userData);
     localStorage.setItem('sheet_analyzer_user', JSON.stringify(userData));
@@ -77,19 +105,12 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('sheet_analyzer_user');
   };
 
-  useEffect(() => {
-    const saved = localStorage.getItem('sheet_analyzer_user');
-    if (saved) {
-      setUser(JSON.parse(saved));
-    }
-  }, []);
-
   const createProject = (name: string) => {
     const newProject: Project = {
       id: Math.random().toString(36).substring(7),
       name,
       sheetData: null,
-      savedViews: []
+      charts: []
     };
     setProjects(prev => [...prev, newProject]);
     setActiveProjectId(newProject.id);
@@ -104,33 +125,59 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
     if (activeProjectId === id) setActiveProjectId(null);
   };
 
-  const saveView = (view: Omit<SavedView, 'id' | 'timestamp'>) => {
-    if (!activeProjectId) return;
-    const newView: SavedView = {
-      ...view,
+  const createChart = (projectId: string, chartConfig: SavedChart['chartConfig']) => {
+    const newChart: SavedChart = {
       id: Math.random().toString(36).substring(7),
-      timestamp: Date.now(),
+      projectId,
+      name: `Gráfica ${Date.now()}`,
+      chartConfig,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      // Default layout position
+      dashboardLayout: { x: 0, y: 0, w: 6, h: 4 }
     };
-    setProjects(prev => prev.map(p => 
-      p.id === activeProjectId ? { ...p, savedViews: [newView, ...p.savedViews] } : p
-    ));
+
+    setProjects(prev => prev.map(p => {
+      if (p.id === projectId) {
+        return { ...p, charts: [...(p.charts || []), newChart] };
+      }
+      return p;
+    }));
+
+    return newChart.id;
   };
 
-  const deleteView = (viewId: string) => {
-    if (!activeProjectId) return;
-    setProjects(prev => prev.map(p => 
-      p.id === activeProjectId ? { ...p, savedViews: p.savedViews.filter(v => v.id !== viewId) } : p
-    ));
+  const updateChart = (chartId: string, updates: Partial<SavedChart>) => {
+    setProjects(prev => prev.map(p => {
+      // Find project containing the chart
+      if (p.charts?.some(c => c.id === chartId)) {
+        return {
+          ...p,
+          charts: p.charts.map(c => c.id === chartId ? { ...c, ...updates, updatedAt: Date.now() } : c)
+        };
+      }
+      return p;
+    }));
   };
 
-  const updateViewName = (viewId: string, name: string) => {
-    if (!activeProjectId) return;
-    setProjects(prev => prev.map(p => 
-      p.id === activeProjectId ? { 
-        ...p, 
-        savedViews: p.savedViews.map(v => v.id === viewId ? { ...v, name } : v) 
-      } : p
-    ));
+  const deleteChart = (chartId: string) => {
+    setProjects(prev => prev.map(p => {
+      if (p.charts?.some(c => c.id === chartId)) {
+        return {
+          ...p,
+          charts: p.charts.filter(c => c.id !== chartId)
+        };
+      }
+      return p;
+    }));
+  };
+
+  const getChart = (chartId: string) => {
+    for (const p of projects) {
+      const chart = p.charts?.find(c => c.id === chartId);
+      if (chart) return chart;
+    }
+    return undefined;
   };
 
   const refreshProjectData = async (projectId: string) => {
@@ -169,9 +216,10 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
       deleteProject,
       refreshProjectData,
       activeProject,
-      saveView, 
-      deleteView,
-      updateViewName,
+      createChart,
+      updateChart,
+      deleteChart,
+      getChart,
       user,
       login,
       logout

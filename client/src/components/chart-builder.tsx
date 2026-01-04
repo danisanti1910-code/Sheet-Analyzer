@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useLocation } from 'wouter';
 import { SheetData } from '@/lib/sheet-utils';
-import { useSheet } from '@/lib/sheet-context';
+import { useSheet, SavedChart } from '@/lib/sheet-context';
 import {
   ResponsiveContainer,
   LineChart, Line,
@@ -27,16 +27,9 @@ interface ChartBuilderProps {
   data: SheetData;
   selectedColumns: string[];
   hideControls?: boolean;
-  initialConfig?: {
-    chartType: ChartType;
-    xAxis: string;
-    yAxis: string[];
-    aggregation?: AggregationType;
-    colorScheme?: string[];
-    title?: string;
-    showLabels?: boolean;
-    activeColorScheme?: string;
-  };
+  initialConfig?: SavedChart['chartConfig'] & { title?: string };
+  onSave?: (config: SavedChart['chartConfig'] & { name: string }) => void;
+  isEditing?: boolean;
 }
 
 type ChartType = 'bar' | 'line' | 'area' | 'scatter' | 'pie';
@@ -50,7 +43,7 @@ const COLOR_SCHEMES = {
   sunset: ['#f72585', '#b5179e', '#7209b7', '#560bad', '#480ca8']
 };
 
-export function ChartBuilder({ data, selectedColumns, hideControls = false, initialConfig }: ChartBuilderProps) {
+export function ChartBuilder({ data, selectedColumns, hideControls = false, initialConfig, onSave, isEditing = false }: ChartBuilderProps) {
   const [chartType, setChartType] = useState<ChartType>(initialConfig?.chartType || 'bar');
   const [xAxis, setXAxis] = useState<string>(initialConfig?.xAxis || '');
   const [yAxis, setYAxis] = useState<string[]>(initialConfig?.yAxis || []);
@@ -65,7 +58,6 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
   );
   
   const chartRef = useRef<HTMLDivElement>(null);
-  const { saveView, activeProject } = useSheet();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
@@ -73,10 +65,10 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
 
   useEffect(() => {
     if (initialConfig) {
-      setChartType(initialConfig.chartType);
+      setChartType(initialConfig.chartType as ChartType);
       setXAxis(initialConfig.xAxis);
       setYAxis([...(initialConfig.yAxis || [])]);
-      setAggregation(initialConfig.aggregation || 'none');
+      setAggregation((initialConfig.aggregation as AggregationType) || 'none');
       setChartTitle(initialConfig.title || '');
       setShowLabels(initialConfig.showLabels || false);
       if (initialConfig.activeColorScheme) {
@@ -183,27 +175,17 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
   }, [data.rows, xAxis, yAxis, aggregation]);
 
   const handleSaveToDashboard = () => {
-    saveView({
-      name: chartTitle || `Gráfico de ${xAxis}`,
-      chartType,
-      xAxis,
-      yAxis: yAxis.length > 0 ? yAxis : ['count'],
-      selectedColumns,
-      colorScheme: colors,
-      aggregation,
-      showLabels,
-      activeColorScheme,
-      // Pass the actual current filters/data state if needed
-      filteredValues: data.rows.length < (activeProject?.sheetData?.rows.length || 0) ? {} : undefined
-    });
-    setIsAddingToDashboard(false);
-    
-    if (confirm('¿Te gustaría agregar esta gráfica a tu dashboard?')) {
-      setLocation('/dashboards');
-    } else {
-      toast({
-        title: "Guardado",
-        description: "El gráfico se ha añadido a las gráficas del proyecto.",
+    if (onSave) {
+      onSave({
+        name: chartTitle || `Gráfico de ${xAxis}`,
+        chartType,
+        xAxis,
+        yAxis: yAxis.length > 0 ? yAxis : ['count'],
+        selectedColumns,
+        colorScheme: colors,
+        aggregation,
+        showLabels,
+        activeColorScheme
       });
     }
   };
@@ -336,26 +318,30 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
       <CardHeader className="pb-4 border-b px-4 py-3">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 mr-auto">
-            <Select value={chartType} onValueChange={(v: any) => setChartType(v)}>
-              <SelectTrigger className="h-8 w-[140px] text-xs">
-                <SelectValue placeholder="Tipo de gráfico" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="bar">Columnas</SelectItem>
-                <SelectItem value="line">Líneas</SelectItem>
-                <SelectItem value="area">Área</SelectItem>
-                <SelectItem value="pie">Circular</SelectItem>
-              </SelectContent>
-            </Select>
+            {!hideControls && (
+              <>
+                <Select value={chartType} onValueChange={(v: any) => setChartType(v)}>
+                  <SelectTrigger className="h-8 w-[140px] text-xs">
+                    <SelectValue placeholder="Tipo de gráfico" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bar">Columnas</SelectItem>
+                    <SelectItem value="line">Líneas</SelectItem>
+                    <SelectItem value="area">Área</SelectItem>
+                    <SelectItem value="pie">Circular</SelectItem>
+                  </SelectContent>
+                </Select>
 
-            <Button 
-              variant="default" 
-              size="sm" 
-              className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-8 text-xs px-3 shadow-sm border border-primary/20"
-              onClick={handleSaveToDashboard}
-            >
-              <LayoutDashboard className="w-3.5 h-3.5" /> Guardar Gráfica
-            </Button>
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-8 text-xs px-3 shadow-sm border border-primary/20"
+                  onClick={handleSaveToDashboard}
+                >
+                  <LayoutDashboard className="w-3.5 h-3.5" /> {isEditing ? 'Actualizar Gráfica' : 'Guardar Gráfica'}
+                </Button>
+              </>
+            )}
           </div>
 
           <div className="flex items-center gap-2">

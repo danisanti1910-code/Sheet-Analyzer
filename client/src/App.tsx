@@ -18,8 +18,20 @@ function Router() {
         {user ? <Redirect to="/projects" /> : <Home />}
       </Route>
       <Route path="/projects" component={Projects} />
-      <Route path="/analyze" component={Analyze} />
-      <Route path="/dashboards" component={Dashboards} />
+      
+      {/* New Routes */}
+      <Route path="/projects/:projectId/charts/new" component={Analyze} />
+      <Route path="/projects/:projectId/charts/:chartId" component={Analyze} />
+      <Route path="/projects/:projectId/dashboards" component={Dashboards} />
+
+      {/* Legacy routes - redirect or keep for now */}
+      <Route path="/analyze">
+        <Redirect to="/projects" />
+      </Route>
+      <Route path="/dashboards">
+        <Redirect to="/projects" />
+      </Route>
+      
       <Route component={NotFound} />
     </Switch>
   );
