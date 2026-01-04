@@ -281,7 +281,7 @@ export default function Dashboards() {
                 isBounded={true}
              >
                 {project.charts.map((chart) => (
-                  <div key={chart.id} className="bg-background shadow-md border rounded-lg overflow-hidden flex flex-col">
+                  <div key={chart.id} className="bg-background shadow-md border rounded-lg overflow-hidden flex flex-col h-full">
                     <CardHeader className="flex flex-row items-center justify-between py-2 px-4 border-b bg-muted/20 shrink-0 drag-handle cursor-move">
                       {editingId === chart.id ? (
                         <div className="flex gap-1" onMouseDown={e => e.stopPropagation()}>
@@ -321,7 +321,7 @@ export default function Dashboards() {
                         </Button>
                       </div>
                     </CardHeader>
-                    <div className="flex-1 min-h-0 bg-white dark:bg-black/20 p-2 overflow-hidden pointer-events-none select-none">
+                    <div className="flex-1 min-h-0 bg-white dark:bg-black/20 p-2 overflow-hidden pointer-events-none select-none h-full">
                        {/* DashboardChartWrapper handles the content and filtering */}
                        <DashboardChartWrapper chart={chart} data={project.sheetData!} />
                     </div>
