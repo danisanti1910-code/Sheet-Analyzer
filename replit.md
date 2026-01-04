@@ -65,6 +65,13 @@ Preferred communication style: Simple, everyday language.
 - **Path aliases**: `@/*` for client, `@shared/*` for shared code
 - **Type sharing**: Schema and types shared between frontend and backend via `shared/` directory
 - **Server-side rendering support**: Vite dev server proxies to Express in development
+- **URL-based navigation**: Pages extract projectId from URL params using `useParams()` and set activeProjectId automatically
+
+### Recent Fixes (January 2026)
+- **Project creation**: Fixed async/await issue in `handleCreate` - `createProject` returns a Promise that must be awaited
+- **Dashboard charts**: Fixed blank charts by using position absolute for ResponsiveContainer sizing
+- **Route-based state**: Pages now extract projectId from URL params and set activeProjectId, enabling direct URL navigation
+- **React hooks order**: All hooks must be called before any conditional returns to avoid "Rendered more hooks" errors
 
 ## External Dependencies
 
