@@ -1,0 +1,120 @@
+1) Persistencia real de gráficas (por proyecto)
+
+Crea/ajusta un modelo de datos para “SavedChart” ligado a un proyecto:
+
+id (string único)
+
+projectId
+
+name
+
+chartConfig completo (tipo de gráfica, columnas seleccionadas, agregaciones, filtros, orden, opciones de visualización, etc.)
+
+createdAt, updatedAt
+
+dashboardLayout (posición y tamaño para dashboard: x,y,w,h o equivalente)
+
+Implementa un store único (Context/Zustand/reducer) que sea la fuente de verdad para:
+
+lista de proyectos
+
+lista de gráficas por proyecto
+
+operaciones CRUD: createChart, updateChart, deleteChart, getChartById, listChartsByProject
+
+Persiste TODO en localStorage (o el mecanismo de persistencia que ya use la app), guardando y cargando el estado completo al iniciar. Usa JSON.stringify/parse y guarda por una key estable. 
+developer.mozilla.org
+
+2) Arreglar el botón “Guardar Gráfica” (ahorita solo guarda el nombre)
+
+En el click de “Guardar Gráfica”, guarda el chartConfig completo, no solo el nombre.
+
+Si la gráfica actual ya tiene chartId (modo edición), ejecuta updateChart(chartId, newConfig).
+
+Si NO tiene chartId (modo nueva), ejecuta createChart(projectId, config) y devuelve el chartId creado.
+
+Tras guardar, actualiza inmediatamente:
+
+el menú lateral “Gráficas del proyecto”
+
+el dashboard (si existe vista abierta)
+
+y persiste el estado.
+
+3) Navegación correcta: cada gráfica debe abrir SU editor con SU config
+
+Implementa rutas con parámetros (dinámicas) para que exista una URL por gráfica:
+
+/projects/:projectId/charts/new
+
+/projects/:projectId/charts/:chartId
+
+En el menú lateral “Gráficas del proyecto”, cada item debe navegar a:
+
+/projects/{projectId}/charts/{chartId}
+(NO debe mandar al generador vacío / página genérica).
+
+En el componente editor (ChartEditor / Builder), lee projectId y chartId desde la URL y carga la config correspondiente con useParams (o el equivalente que ya usen). 
+React Router
++1
+
+Si chartId existe:
+
+carga SavedChart.chartConfig
+
+precarga UI (dropdowns, filtros, columnas, etc.)
+
+Si es /new:
+
+inicializa defaults
+
+NO reutilices estado “pegado” de la última gráfica (reset limpio).
+
+4) Un solo componente para editar, desde sidebar y desde dashboard (misma fuente de verdad)
+
+El dashboard y el menú lateral NO deben abrir dos pantallas distintas que “parecen iguales”.
+
+Ambos deben:
+
+navegar al mismo route /projects/:projectId/charts/:chartId
+
+renderizar el mismo ChartEditor (mismo código, mismo state store).
+
+Cuando edites y guardes desde cualquiera, el otro debe reflejarlo porque comparten store.
+
+5) Dashboard con gráficas editables y redimensionables
+
+En /projects/:projectId/dashboards, renderiza las gráficas guardadas del proyecto usando un layout draggable + resizable.
+
+Implementa resizing/dragging con una librería tipo react-grid-layout (recomendado) y guarda el layout por chartId en dashboardLayout. 
+GitHub
+
+Cada tarjeta/gráfica del dashboard debe incluir:
+
+botón “Editar” (o click) que navegue a /projects/:projectId/charts/:chartId
+
+Cuando el usuario cambie el tamaño/posición en dashboard:
+
+actualiza dashboardLayout en el store
+
+persiste en localStorage
+
+al recargar la página, debe mantenerse igual.
+
+6) Tarjetas de resumen de la gráfica en dashboard
+
+Reusa la misma lógica de cálculo (o crea una función única) para mostrar en dashboard:
+
+resumen estadístico/metadata relevante (faltantes, únicos, top, media/mediana/min/max si aplica)
+
+Estas tarjetas deben estar ligadas a la misma SavedChart.chartConfig (si cambias filtros/columnas y guardas, el resumen cambia).
+
+7) Criterios de aceptación (pruebas manuales obligatorias)
+
+Caso 1: Crear gráfica nueva → Guardar → aparece en sidebar → click en sidebar → abre esa misma gráfica con su config.
+
+Caso 2: Editar gráfica (cambiar filtros/columnas) → Guardar → volver a dashboard → la gráfica refleja cambios.
+
+Caso 3: Redimensionar en dashboard → recargar página → mantiene tamaño/posición.
+
+Caso 4: Abrir gráfica desde dashboard y desde sidebar → debe ser el mismo editor y el mismo estado.
