@@ -452,7 +452,7 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
           </div>
           <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button variant="outline" onClick={() => setIsSaveDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={confirmSave}>Guardar Gráfica</Button>
+            <Button onClick={confirmSave} type="submit">Guardar Gráfica</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -34,7 +34,7 @@ export function ChartBuilderWrapper({
   projectId: string,
   chartId?: string
 }) {
-  const { getChart, createChart, updateChart, activeProject, addToGlobalDashboard } = useSheet();
+  const { getChart, createChart, updateChart, activeProject, addToGlobalDashboard: addToGlobalDashboardProp } = useSheet();
   const [initialConfig, setInitialConfig] = useState<any>(null);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -92,13 +92,21 @@ export function ChartBuilderWrapper({
     }
 
     // Handle Global Dashboard
+    // Use the function directly from scope, not destructuring from hook inside callback
     if (addToGlobalDashboard && currentChartId) {
-        addToGlobalDashboard(projectId, currentChartId);
+        // We need to call the context method.
+        // Since we cannot call the hook here, and we already destructured `addToGlobalDashboard` from `useSheet` in the component body
+        // we can just use that.
+        addToGlobalDashboardProp(projectId, currentChartId);
     }
+    
+    // Force UI update via navigation/toast
+    // Navigation handles the refresh naturally in this app structure
 
     if (addToProjectDashboard) {
         setLocation(`/projects/${projectId}/dashboards`);
     } else if (!chartId) {
+        // If it was a new chart, navigate to its edit URL to prevent "new" state overwrites
         setLocation(`/projects/${projectId}/charts/${currentChartId}`);
     }
   };

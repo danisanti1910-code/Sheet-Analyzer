@@ -1,0 +1,251 @@
+Objetivo inmediato
+
+Arreglar 2 cosas sin romper lo que ya funciona:
+
+En el modal Guardar Gráfica, al dar “Guardar Gráfica” no hace nada (no navega, no guarda o no actualiza UI) y no se agrega correctamente al Dashboard Principal aunque esté marcado.
+
+Dashboard (proyecto y principal):
+
+el layout/acomodo NO se persiste (al volver se mueve o se resetea)
+
+el tamaño NO es responsivo y la gráfica se recorta en vez de “escala/zoom” dentro del contenedor.
+
+A) Fix: Botón “Guardar Gráfica” debe guardar, actualizar UI y redirigir
+A1) Asegurar flujo correcto del modal
+
+Localiza el componente modal SaveChartModal (o equivalente).
+
+Revisa el handler del botón “Guardar Gráfica” (ej. onSave, handleSaveChart).
+
+Corrige para que el handler haga exactamente esto en orden:
+
+Paso 1 — Validación mínima
+
+Si chartName está vacío → mostrar error y no guardar.
+
+Si no hay projectId o no hay config de chart → error.
+
+Paso 2 — Construir objeto “SavedChart” completo
+Generar/usar chartId único (NO sobrescribir chart existente si es “nuevo análisis”).
+Guardar:
+
+id: chartId
+
+projectId
+
+name: chartName (ESTE es el nombre final, no reemplazarlo con id)
+
+chartType
+
+selectedColumns
+
+filters
+
+aggregations
+
+dataSourceId / datasetId (si aplica)
+
+createdAt, updatedAt
+
+insightsConfig (si hay tarjetas de resumen)
+
+defaultLayout (w/h iniciales) si el dashboard lo requiere
+
+Paso 3 — Persistir (storage/store)
+
+Guardar en el store principal (por ejemplo):
+
+chartsByProject[projectId][chartId] = savedChart
+
+Persistir en localStorage/DB (lo que ya usen) con una sola función saveChart(savedChart).
+
+Paso 4 — Si checkbox “Añadir al Dashboard del Proyecto” está marcado
+
+Agregar referencia chartId a projectDashboardItems[projectId] (sin duplicar)
+
+Si tu dashboard usa layout: crear un layout inicial para ese chart si no existe
+
+Paso 5 — Si checkbox “Añadir al Dashboard Principal” está marcado
+
+Agregar referencia a globalDashboardItems como:
+
+{ globalItemId, projectId, chartId }
+
+Persistir globalDashboardItems inmediatamente (y layout si aplica)
+
+Paso 6 — Cerrar modal + Navegar
+
+Cerrar modal (setOpen(false))
+
+Navegar a la vista de esa gráfica guardada:
+
+/projects/:projectId/charts/:chartId (o ruta equivalente)
+
+Asegurar que la vista cargue la gráfica por chartId (no por “current draft”).
+
+A2) Bug típico: “no pasa nada” por submit / preventDefault
+
+Si el modal usa <form onSubmit>, asegurar:
+
+el botón “Guardar Gráfica” sea type="submit"
+
+el handler haga event.preventDefault()
+
+o si es type="button", que llame directamente a handleSaveChart()
+
+A3) Bug típico: se guarda pero no se refleja
+
+Si el guardado está en localStorage pero la UI no se refresca:
+
+Garantizar que el store react (Context/Zustand/Redux) se actualiza también.
+
+No depender de “reload” para ver cambios.
+
+Después de guardar, forzar un setState / dispatch / setStore con la lista nueva.
+
+A4) Validación final (manual)
+
+Test:
+
+Crear gráfica → abrir modal → marcar “Dashboard principal” → Guardar.
+
+Confirmar:
+
+vuelve a vista de gráfica guardada
+
+aparece en menú lateral (con nombre correcto)
+
+aparece en Dashboard del proyecto si marcado
+
+aparece en Dashboard principal si marcado
+
+B) Fix: Layout persistente + Gráficas responsivas SIN RECORTE (proyecto y global)
+B1) Persistencia del layout (posición y tamaño)
+
+Identifica la librería/layout actual:
+
+Si usan react-grid-layout o similar: persistir layouts.
+
+Si NO usan librería: implementar CSS grid + drag-drop es más duro; preferir react-grid-layout.
+
+Crear estructura de persistencia:
+
+projectDashboardLayoutByProject[projectId] = layout
+
+globalDashboardLayout = layout
+
+Cada vez que el usuario:
+
+mueve una gráfica (drag) o
+
+cambia tamaño (resize)
+Guardar inmediatamente:
+
+onLayoutChange(layout) → persistir en store + localStorage
+
+onResizeStop / onDragStop → persistir también (por seguridad)
+
+Al cargar dashboard:
+
+si existe layout persistido → úsalo
+
+si no existe → genera layout default
+
+Requisito: el layout debe usar keys estables:
+
+Para dashboard proyecto: item key = chartId
+
+Para dashboard global: item key = globalItemId (porque puede repetir chart en varias posiciones si en el futuro quieres)
+
+B2) Responsivo real: NO cortar la gráfica, ESCALARLA al contenedor
+Qué se quiere lograr
+
+Cuando el contenedor se hace más chico o grande:
+
+La gráfica se redibuja/escala para caber
+
+No se corta como “imagen”
+
+Debe sentirse como “zoom out / zoom in” automático (en realidad es re-render al tamaño)
+
+Implementación (obligatoria)
+
+En cada card de gráfica, el chart debe renderizarse con tamaño del contenedor:
+
+Usar un wrapper responsivo:
+
+Si es Recharts: ResponsiveContainer width="100%" height="100%"
+
+Si es Chart.js: usar responsive: true y maintainAspectRatio: false
+
+Si es SVG custom: medir contenedor y ajustar viewBox
+
+El contenedor del chart dentro de la card debe tener:
+
+width: 100%
+
+height: 100%
+
+un min-height razonable (ej: 280px)
+
+NO hardcodear width={600} height={400} en el componente del chart.
+
+Implementar medición con ResizeObserver si el chart lo necesita:
+
+Observar el div contenedor
+
+Guardar containerWidth/containerHeight en state
+
+Pasarlo al chart o usarlo para recalcular
+
+Evitar recorte:
+
+NO usar overflow:hidden en el canvas/chart si eso recorta e impide ver ejes/labels
+
+Preferir:
+
+reducir labels
+
+rotar texto
+
+ajustar márgenes en función del tamaño (ej: menos margin cuando es pequeño)
+
+Resize horizontal + vertical:
+
+En layout, habilitar handles horizontales:
+
+resizeHandles: ["s","e","se","w","n","ne","nw","sw"]
+
+Asegurar que el contenedor crece en width y height con el resize (no solo height).
+
+B3) Persistencia de tamaño + render correcto al volver
+
+Cuando cargas dashboard:
+
+cargar layout persistido
+
+renderizar cards con style={{width:'100%', height:'100%'}}
+
+el chart debe reaccionar automáticamente (ResponsiveContainer/ResizeObserver)
+
+Test:
+
+En dashboard proyecto: colocar 2 charts, cambiar tamaño en horizontal y vertical, recargar → debe verse igual.
+
+En dashboard principal: repetir.
+
+C) Extra: “Dashboard principal no se actualiza tras guardar”
+
+Después de marcar “Añadir al Dashboard Principal”, el save debe:
+
+crear globalDashboardItem
+
+persistir
+
+y actualizar state inmediatamente
+
+En Dashboard principal, el listado debe:
+
+leer del store (no solo del localStorage al inicio)
+
+mostrar en caliente sin refresh
