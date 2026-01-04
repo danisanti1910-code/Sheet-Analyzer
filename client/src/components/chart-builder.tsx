@@ -79,11 +79,12 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
       if (initialConfig.activeColorScheme) {
         setActiveColorScheme(initialConfig.activeColorScheme as any);
       }
-      return;
     }
-    
+  }, [JSON.stringify(initialConfig)]);
+
+  useEffect(() => {
     // Auto-selection logic for NEW charts only
-    if (selectedColumns.length > 0) {
+    if (!initialConfig && selectedColumns.length > 0) {
       const numerics = selectedColumns.filter(c => data.columnProfiles[c]?.type === 'numeric');
       const categoricals = selectedColumns.filter(c => data.columnProfiles[c]?.type === 'categorical' || data.columnProfiles[c]?.type === 'boolean');
       const datetimes = selectedColumns.filter(c => data.columnProfiles[c]?.type === 'datetime');
@@ -120,7 +121,7 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
       setXAxis('');
       setYAxis([]);
     }
-  }, [selectedColumns, data.columnProfiles, JSON.stringify(initialConfig)]);
+  }, [selectedColumns, data.columnProfiles]);
 
   const processedData = useMemo(() => {
     if (!data.rows || data.rows.length === 0 || !xAxis) return [];
@@ -346,6 +347,33 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
                     <SelectItem value="area">Área</SelectItem>
                     <SelectItem value="pie">Circular</SelectItem>
                   </SelectContent>
+                </Select>
+
+                <div className="h-6 w-px bg-border mx-1" />
+
+                <Select value={xAxis} onValueChange={setXAxis}>
+                    <SelectTrigger className="h-8 w-[140px] text-xs border-dashed">
+                        <span className="truncate">{xAxis || "Eje X"}</span>
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="_placeholder" disabled>Seleccionar Eje X</SelectItem>
+                        {selectedColumns.map(col => (
+                            <SelectItem key={col} value={col}>{col}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+
+                <Select value={yAxis[0] || ""} onValueChange={(val) => setYAxis([val])}>
+                    <SelectTrigger className="h-8 w-[140px] text-xs border-dashed">
+                        <span className="truncate">{yAxis[0] || "Eje Y (Serie)"}</span>
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="_placeholder" disabled>Seleccionar Eje Y</SelectItem>
+                        {selectedColumns.map(col => (
+                            <SelectItem key={col} value={col}>{col}</SelectItem>
+                        ))}
+                        <SelectItem value="count">Conteo (Frecuencia)</SelectItem>
+                    </SelectContent>
                 </Select>
 
                 <Button 
