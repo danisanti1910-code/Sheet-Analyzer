@@ -63,6 +63,19 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
   );
   
   const chartRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [resizeKey, setResizeKey] = useState(0);
+
+  useEffect(() => {
+    if (!hideControls || !containerRef.current) return;
+    
+    const resizeObserver = new ResizeObserver(() => {
+      setResizeKey(k => k + 1);
+    });
+    
+    resizeObserver.observe(containerRef.current);
+    return () => resizeObserver.disconnect();
+  }, [hideControls]);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
@@ -437,6 +450,14 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
 
     return renderChartByType();
   };
+
+  if (hideControls) {
+    return (
+      <div ref={containerRef} className="w-full h-full" key={resizeKey}>
+        {renderChart()}
+      </div>
+    );
+  }
 
   return (
     <Card className="h-full flex flex-col shadow-sm border bg-card overflow-hidden">

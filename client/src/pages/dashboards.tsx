@@ -102,8 +102,8 @@ function DashboardChartWrapper({ chart, data }: { chart: SavedChart, data: Sheet
   }, [data, chart.chartConfig.filteredValues]);
 
   return (
-    <div className="w-full h-full flex flex-col md:flex-row gap-4 overflow-hidden pointer-events-auto">
-      <div className={`flex-1 min-h-0 ${chart.includeInsights ? 'h-1/2 md:h-full md:w-2/3' : 'h-full'}`}>
+    <div className="w-full h-full flex flex-col md:flex-row gap-2 overflow-hidden pointer-events-auto">
+      <div className={`flex-1 min-h-0 min-w-0 ${chart.includeInsights ? 'md:w-2/3' : 'w-full'}`}>
          <ChartBuilder 
             data={filteredData} 
             selectedColumns={chart.chartConfig.selectedColumns}
@@ -112,16 +112,15 @@ function DashboardChartWrapper({ chart, data }: { chart: SavedChart, data: Sheet
          />
       </div>
       {chart.includeInsights && (
-        <div className="h-1/2 md:h-full md:w-1/3 overflow-y-auto bg-slate-50 dark:bg-slate-900/50 p-2 rounded border">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 px-1">Insights</h4>
-            <div className="space-y-4 transform scale-90 origin-top-left w-[111%]"> 
-               {/* Scale down slightly to fit better in dashboard sidebars */}
+        <div className="md:w-1/3 min-w-0 overflow-y-auto overflow-x-hidden bg-slate-50 dark:bg-slate-900/50 p-2 rounded border flex flex-col">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 px-1 shrink-0">Insights</h4>
+            <div className="flex-1 min-h-0 overflow-y-auto">
                <InsightsPanel 
                   sheetData={filteredData} 
                   sourceData={data}
                   selectedColumns={chart.chartConfig.selectedColumns} 
                   filteredValues={chart.chartConfig.filteredValues || {}}
-                  onFilterChange={() => {}} // Read only in dashboard
+                  onFilterChange={() => {}}
                />
             </div>
         </div>

@@ -59,8 +59,8 @@ export function InsightsPanel({ sheetData, sourceData, selectedColumns, filtered
   }
 
   return (
-    <div className="space-y-6 animate-in slide-in-from-right duration-500 w-full">
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:flex xl:flex-wrap">
+    <div className="space-y-3 animate-in slide-in-from-right duration-500 w-full">
+      <div className="flex flex-col gap-3">
         {selectedColumns.map(col => {
           const profile = sheetData.columnProfiles[col];
           if (!profile) return null;
@@ -69,7 +69,7 @@ export function InsightsPanel({ sheetData, sourceData, selectedColumns, filtered
           const selectedFilters = filteredValues[col] || allPossibleValues;
 
           return (
-            <Card key={col} className="overflow-hidden border-l-4 border-l-primary shadow-sm hover:shadow-md transition-shadow xl:w-[280px] shrink-0">
+            <Card key={col} className="overflow-hidden border-l-4 border-l-primary shadow-sm hover:shadow-md transition-shadow w-full">
               <CardHeader className="pb-2 bg-muted/10">
                 <div className="flex justify-between items-start gap-2">
                   <div className="flex flex-col min-w-0">
