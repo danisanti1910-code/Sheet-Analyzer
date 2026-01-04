@@ -28,7 +28,7 @@ interface ChartBuilderProps {
   selectedColumns: string[];
   hideControls?: boolean;
   initialConfig?: SavedChart['chartConfig'] & { title?: string };
-  onSave?: (config: SavedChart['chartConfig'] & { name: string }) => void;
+  onSave?: (config: SavedChart['chartConfig'] & { name: string }, addToDashboard?: boolean) => void;
   isEditing?: boolean;
 }
 
@@ -51,6 +51,10 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
   const [chartTitle, setChartTitle] = useState(initialConfig?.title || '');
   const [isAddingToDashboard, setIsAddingToDashboard] = useState(false);
   const [showLabels, setShowLabels] = useState(initialConfig?.showLabels || false);
+  
+  // Dialog State
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const [saveName, setSaveName] = useState("");
   
   const [activeColorScheme, setActiveColorScheme] = useState<keyof typeof COLOR_SCHEMES>(
     (Object.keys(COLOR_SCHEMES).find(k => k === initialConfig?.activeColorScheme) as any) || 
@@ -174,10 +178,15 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
     }).slice(0, 500);
   }, [data.rows, xAxis, yAxis, aggregation]);
 
-  const handleSaveToDashboard = () => {
+  const openSaveDialog = () => {
+    setSaveName(chartTitle || `Gráfico de ${xAxis}`);
+    setIsSaveDialogOpen(true);
+  };
+
+  const confirmSave = (addToDashboard: boolean) => {
     if (onSave) {
       onSave({
-        name: chartTitle || `Gráfico de ${xAxis}`,
+        name: saveName,
         chartType,
         xAxis,
         yAxis: yAxis.length > 0 ? yAxis : ['count'],
@@ -186,8 +195,9 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
         aggregation,
         showLabels,
         activeColorScheme
-      });
+      }, addToDashboard);
     }
+    setIsSaveDialogOpen(false);
   };
 
   const renderChart = () => {
@@ -336,7 +346,7 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
                   variant="default" 
                   size="sm" 
                   className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-8 text-xs px-3 shadow-sm border border-primary/20"
-                  onClick={handleSaveToDashboard}
+                  onClick={openSaveDialog}
                 >
                   <LayoutDashboard className="w-3.5 h-3.5" /> {isEditing ? 'Actualizar Gráfica' : 'Guardar Gráfica'}
                 </Button>
@@ -388,6 +398,33 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
       <CardContent className="flex-1 min-h-[400px] p-6" ref={chartRef}>
         {renderChart()}
       </CardContent>
+
+      <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>{isEditing ? 'Actualizar Gráfica' : 'Guardar Gráfica'}</DialogTitle>
+          </DialogHeader>
+          <div className="py-6 space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="chart-name">Nombre de la gráfica</Label>
+              <Input 
+                id="chart-name" 
+                value={saveName} 
+                onChange={(e) => setSaveName(e.target.value)} 
+                placeholder="Ej. Ventas por mes"
+              />
+            </div>
+            <div className="bg-muted/40 p-4 rounded-lg">
+              <h4 className="font-medium text-sm mb-1">¿Te gustaría que esa gráfica se agregue al dashboard?</h4>
+              <p className="text-xs text-muted-foreground">Podrás visualizarla junto con otras métricas importantes de tu proyecto.</p>
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => confirmSave(false)}>Solo Guardar</Button>
+            <Button onClick={() => confirmSave(true)}>Subir al Dashboard</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

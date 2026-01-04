@@ -64,7 +64,7 @@ export function ChartBuilderWrapper({
     }
   }, [chartId, activeProject?.id]);
 
-  const handleSave = (config: SavedChart['chartConfig'] & { name: string }) => {
+  const handleSave = (config: SavedChart['chartConfig'] & { name: string }, addToDashboard: boolean = false) => {
     const { name, ...chartConfig } = config;
     
     if (chartId) {
@@ -79,6 +79,10 @@ export function ChartBuilderWrapper({
         }
       });
       toast({ title: "Gráfica actualizada", description: "Los cambios se han guardado correctamente." });
+      
+      if (addToDashboard) {
+        setLocation(`/projects/${projectId}/dashboards`);
+      }
     } else {
       // Create new
       const newId = createChart(projectId, {
@@ -86,8 +90,13 @@ export function ChartBuilderWrapper({
         selectedColumns
       });
       toast({ title: "Gráfica guardada", description: "Se ha creado una nueva gráfica en el proyecto." });
-      // Navigate to edit mode
-      setLocation(`/projects/${projectId}/charts/${newId}`);
+      
+      if (addToDashboard) {
+        setLocation(`/projects/${projectId}/dashboards`);
+      } else {
+        // Navigate to edit mode if we are not going to dashboard
+        setLocation(`/projects/${projectId}/charts/${newId}`);
+      }
     }
   };
 
@@ -403,7 +412,7 @@ export default function Analyze({ params }: { params: { projectId: string, chart
         <ResizablePanelGroup direction="horizontal" className="flex-1">
           <ResizablePanel defaultSize={20} minSize={15} className="hidden md:block">
             <ColumnSidebar 
-              data={activeProject.sheetData} 
+              data={activeProject.sheetData!} 
               selectedColumns={selectedColumns} 
               onSelectionChange={setSelectedColumns}
               filteredValues={filteredValues}
@@ -436,7 +445,7 @@ export default function Analyze({ params }: { params: { projectId: string, chart
                         <div className="w-full xl:w-[400px] shrink-0">
                             <InsightsPanel 
                                 sheetData={displayData!} 
-                                sourceData={activeProject.sheetData}
+                                sourceData={activeProject.sheetData!}
                                 selectedColumns={selectedColumns} 
                                 filteredValues={filteredValues}
                                 onFilterChange={handleFilterChange}
