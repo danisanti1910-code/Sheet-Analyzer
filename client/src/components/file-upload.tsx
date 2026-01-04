@@ -36,9 +36,14 @@ export function FileUpload() {
         const data = await parseSheet(action.data, headerMode);
         let targetId = activeProjectId;
         if (!targetId) {
-          createProject(`Proyecto ${action.data.name}`);
+          targetId = createProject(`Proyecto ${action.data.name}`);
         }
-        updateProject(activeProjectId || '', { sheetData: data });
+        updateProject(targetId || '', { sheetData: data });
+        // Update targetId for navigation
+        if (!activeProjectId) setActiveProjectId(targetId);
+        
+        toast({ title: "Procesado con éxito" });
+        setLocation(`/projects/${targetId}/charts/new`);
       } else {
         let fetchUrl = action.data;
         if (fetchUrl.includes('docs.google.com/spreadsheets')) {
@@ -53,9 +58,10 @@ export function FileUpload() {
         const file = new File([blob], "imported.csv", { type: "text/csv" });
         const data = await parseSheet(file, headerMode);
         updateProject(activeProjectId || '', { sheetData: data, sourceUrl: action.data });
+        
+        toast({ title: "Procesado con éxito" });
+        setLocation(`/projects/${activeProjectId}/charts/new`);
       }
-      toast({ title: "Procesado con éxito" });
-      setLocation('/analyze');
     } catch (e) {
       toast({ title: "Error", variant: "destructive" });
     } finally {

@@ -4,6 +4,7 @@ export interface SavedChart {
   id: string;
   projectId: string;
   name: string;
+  includeInsights?: boolean;
   chartConfig: {
     chartType: any;
     xAxis: string;
@@ -41,13 +42,13 @@ interface SheetContextType {
   projects: Project[];
   activeProjectId: string | null;
   setActiveProjectId: (id: string | null) => void;
-  createProject: (name: string) => void;
+  createProject: (name: string) => string;
   updateProject: (id: string, updates: Partial<Project>) => void;
   deleteProject: (id: string) => void;
   refreshProjectData: (id: string) => Promise<void>;
   
   // Charts
-  createChart: (projectId: string, chartConfig: SavedChart['chartConfig']) => string;
+  createChart: (projectId: string, chartConfig: SavedChart['chartConfig'], name?: string, includeInsights?: boolean) => string;
   updateChart: (chartId: string, updates: Partial<SavedChart>) => void;
   deleteChart: (chartId: string) => void;
   getChart: (chartId: string) => SavedChart | undefined;
@@ -114,6 +115,7 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
     };
     setProjects(prev => [...prev, newProject]);
     setActiveProjectId(newProject.id);
+    return newProject.id;
   };
 
   const updateProject = (id: string, updates: Partial<Project>) => {
@@ -125,21 +127,34 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
     if (activeProjectId === id) setActiveProjectId(null);
   };
 
-  const createChart = (projectId: string, chartConfig: SavedChart['chartConfig']) => {
+  const createChart = (projectId: string, chartConfig: SavedChart['chartConfig'], name?: string, includeInsights?: boolean) => {
     const newChart: SavedChart = {
       id: Math.random().toString(36).substring(7),
       projectId,
-      name: `Gráfica ${Date.now()}`,
+      name: name || `Gráfica ${Date.now()}`,
+      includeInsights: includeInsights || false,
       chartConfig,
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      // Default layout position
-      dashboardLayout: { x: 0, y: 0, w: 6, h: 4 }
+      // Default layout position - find next available slot roughly
+      dashboardLayout: { x: 0, y: Infinity, w: 6, h: 4 } 
     };
 
     setProjects(prev => prev.map(p => {
       if (p.id === projectId) {
-        return { ...p, charts: [...(p.charts || []), newChart] };
+        // Simple layout collision avoidance strategy: put it at the bottom
+        // RGL usually handles this if y is Infinity, but let's be safe
+        const existingCharts = p.charts || [];
+        let maxY = 0;
+        existingCharts.forEach(c => {
+            if (c.dashboardLayout) {
+                maxY = Math.max(maxY, c.dashboardLayout.y + c.dashboardLayout.h);
+            }
+        });
+        
+        newChart.dashboardLayout = { x: 0, y: maxY, w: 6, h: 4 };
+
+        return { ...p, charts: [...existingCharts, newChart] };
       }
       return p;
     }));

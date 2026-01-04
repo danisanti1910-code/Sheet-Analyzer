@@ -1,0 +1,170 @@
+Objetivo general
+
+Corregir flujo de navegación de proyectos, persistencia/edición de gráficas en dashboard, evitar traslapes, permitir resize horizontal+vertical real, respetar nombres, y mostrar tarjetas de resumen junto con cada gráfica.
+
+1) Flujo correcto al crear/configurar proyecto (navegación)
+
+Identifica el flujo actual cuando:
+
+Se crea un nuevo proyecto.
+
+Se sube/configura la tabla/dataset del proyecto.
+
+Cambia las redirecciones para que:
+
+Después de crear un proyecto, navegar automáticamente a la pantalla de configuración de tabla/dataset del proyecto (no a la tarjeta del proyecto).
+
+Después de subir/configurar la tabla, navegar automáticamente a la pantalla de análisis/selección de columnas y filtros (donde ya se ve la tabla y se seleccionan columnas), no regresar a “Mis Proyectos”.
+
+Implementa esto con navegación explícita (router) usando el projectId:
+
+createProject() -> navigate(/projects/:projectId/data) o equivalente.
+
+uploadTable() / configureTable() -> navigate(/projects/:projectId/analysis) o equivalente.
+
+Asegura que si el usuario recarga la página, el proyecto correcto se vuelve a cargar por projectId desde la URL.
+
+2) Dashboard: evitar traslape y arreglar layout (grid real)
+
+Ubica el componente del dashboard donde se renderizan las tarjetas/gráficas (grid).
+
+Corrige el sistema de posicionamiento para que NO se traslapen:
+
+Si estás usando grid libre tipo “drag & drop”, asegúrate de tener colisiones activas y que cada item tenga x,y,w,h válidos.
+
+Si NO hay grid engine (ej. react-grid-layout), implementa uno (recomendado) para manejar posiciones, colisiones y responsive.
+
+Al agregar una nueva gráfica al dashboard:
+
+Asigna una posición inicial que no choque con otras (ej. siguiente fila disponible).
+
+No renderizar dos elementos con el mismo key o mismo id de layout.
+
+3) Resize real: horizontal + vertical + responsive del contenido
+
+Habilita resize en ambos ejes:
+
+Permitir resizeHandles para e, w, n, s, se, sw, ne, nw (o equivalente).
+
+Al cambiar el tamaño, el nuevo w,h debe:
+
+Guardarse en el estado del dashboard (por proyecto).
+
+Persistirse en storage (localStorage o DB si ya existe).
+
+La gráfica debe adaptarse al tamaño del contenedor:
+
+El componente chart debe usar width: 100% y height: 100%.
+
+Si usas una librería como Recharts, envolver con ResponsiveContainer.
+
+Evitar “se corta”: el contenedor interno debe ajustar overflow correctamente (ideal: visible/auto según caso, pero que no recorte el chart por error).
+
+Persistencia:
+
+Al navegar fuera y volver, se deben restaurar posiciones y tamaños desde storage exactamente como estaban.
+
+4) Nombre de la gráfica: no reemplazar por ID random
+
+Localiza el flujo “Guardar Gráfica” (modal):
+
+El usuario escribe chartName.
+
+Se guarda la gráfica.
+
+Corrige para que el nombre visible en:
+
+Menú lateral (“Gráficas del proyecto”)
+
+Header/título de la tarjeta en dashboard
+
+Vista individual de la gráfica
+…sea siempre el chartName guardado por el usuario.
+
+El id puede existir, pero:
+
+No debe reemplazar el name.
+
+Si falta name, usar fallback: "Gráfica sin nombre" (no el ID).
+
+Asegura que al guardar se persista: { id, projectId, name, config, layout, createdAt, updatedAt }
+
+Cuando se renderiza la lista lateral y dashboard:
+
+Rehidratación desde storage debe mapear name correctamente, sin regenerar nombres.
+
+5) Subir al dashboard debe incluir tarjetas de resumen (insights)
+
+Define que cada “gráfica guardada” contiene dos cosas:
+
+chartConfig (tipo, ejes, columnas, filtros, etc.)
+
+summaryConfig (qué tarjetas/resúmenes deben mostrarse: faltantes, únicos, top, media, mediana, min/max, etc.)
+
+Cuando el usuario presiona “Subir al Dashboard”:
+
+Guardar includeInDashboard: true
+
+Guardar también summaryConfig junto con la gráfica (no sólo la gráfica).
+
+En el dashboard, cada widget debe renderizar:
+
+Área de gráfica
+
+Área de tarjetas de resumen (igual que en análisis)
+
+Las tarjetas deben ser responsivas al tamaño:
+
+Si el widget es grande: mostrar tarjetas en columna lateral o debajo.
+
+Si el widget es pequeño: mostrar versión compacta (menos tarjetas o colapsables).
+
+Persistir la disposición de tarjetas también (si aplica): summaryLayoutMode: "side" | "bottom" | "compact".
+
+6) Enrutamiento: misma gráfica desde menú lateral y desde dashboard abre lo mismo
+
+Crea una ruta única para editar/ver gráfica:
+
+/projects/:projectId/charts/:chartId
+
+Desde menú lateral (lista de gráficas):
+
+click -> navegar a esa ruta.
+
+Desde dashboard (widget):
+
+click en título o botón editar -> navegar a esa ruta.
+
+Esa vista debe cargar:
+
+config completa de la gráfica (filtros, columnas, tipo)
+
+estado de summary cards
+
+Al guardar cambios en esa vista:
+
+actualizar la gráfica en storage
+
+reflejar cambios en menú lateral y dashboard inmediatamente (estado global / store / revalidación).
+
+7) Checklist de verificación (tests manuales)
+
+Crear proyecto -> te manda directo a configurar tabla.
+
+Subir tabla -> te manda directo a análisis (columnas/filtros).
+
+Guardar gráfica con nombre -> el nombre se mantiene en:
+
+menú lateral
+
+dashboard
+
+vista de edición
+
+Subir 2 gráficas -> NO se traslapan.
+
+Resize horizontal+vertical -> el chart se adapta, no se corta.
+
+Recargar dashboard -> tamaños/posiciones se conservan.
+
+Editar gráfica desde dashboard o menú -> abre la misma vista y cambios se reflejan en ambos.

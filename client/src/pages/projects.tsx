@@ -27,10 +27,11 @@ export default function Projects() {
 
   const handleCreate = () => {
     if (newProjectName.trim()) {
-      createProject(newProjectName);
+      const newId = createProject(newProjectName);
       setNewProjectName("");
       setIsDialogOpen(false);
-      setLocation("/analyze");
+      // Navigate to analysis/new chart immediately
+      setLocation(`/projects/${newId}/charts/new`);
     }
   };
 

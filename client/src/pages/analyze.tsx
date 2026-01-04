@@ -71,11 +71,16 @@ export function ChartBuilderWrapper({
       // Update existing
       updateChart(chartId, {
         name,
+        includeInsights: addToDashboard, // Update preference if saving again? Or maybe keep existing if not specified? 
+        // Let's assume if they click "Upload to dashboard" they want insights on. 
+        // If "Just save", maybe we shouldn't disable it if it was already on?
+        // For now, let's just set it to addToDashboard value which acts as "enable dashboard features".
+        // Better logic: if addToDashboard is true, set includeInsights=true. If false, leave it (or set false?).
+        // Prompt says: "Subir al Dashboard debe incluir tarjetas".
+        includeInsights: addToDashboard ? true : undefined, // Don't disable if just saving updates
         chartConfig: {
           ...chartConfig,
-          // Ensure we save current state
           selectedColumns, 
-          // Add filters if needed
         }
       });
       toast({ title: "Gráfica actualizada", description: "Los cambios se han guardado correctamente." });
@@ -88,13 +93,13 @@ export function ChartBuilderWrapper({
       const newId = createChart(projectId, {
         ...chartConfig,
         selectedColumns
-      });
+      }, name, addToDashboard); // Pass name and includeInsights
+      
       toast({ title: "Gráfica guardada", description: "Se ha creado una nueva gráfica en el proyecto." });
       
       if (addToDashboard) {
         setLocation(`/projects/${projectId}/dashboards`);
       } else {
-        // Navigate to edit mode if we are not going to dashboard
         setLocation(`/projects/${projectId}/charts/${newId}`);
       }
     }
