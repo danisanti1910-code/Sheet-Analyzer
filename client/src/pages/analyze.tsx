@@ -425,7 +425,7 @@ export default function Analyze({ params }: { params: { projectId: string, chart
                      <div className="flex flex-col xl:flex-row gap-6">
                         <div className="flex-1 h-[600px]">
                             <ChartBuilderWrapper 
-                              data={displayData} 
+                              data={displayData!} 
                               selectedColumns={selectedColumns} 
                               setSelectedColumns={setSelectedColumns}
                               setFilteredValues={setFilteredValues}
@@ -435,7 +435,7 @@ export default function Analyze({ params }: { params: { projectId: string, chart
                         </div>
                         <div className="w-full xl:w-[400px] shrink-0">
                             <InsightsPanel 
-                                sheetData={displayData} 
+                                sheetData={displayData!} 
                                 sourceData={activeProject.sheetData}
                                 selectedColumns={selectedColumns} 
                                 filteredValues={filteredValues}
@@ -446,7 +446,7 @@ export default function Analyze({ params }: { params: { projectId: string, chart
                   </TabsContent>
 
                   <TabsContent value="data">
-                    <DataTable data={displayData} selectedColumns={selectedColumns} />
+                    <DataTable data={displayData!} selectedColumns={selectedColumns} />
                   </TabsContent>
 
                   <TabsContent value="duplicates">

@@ -7,12 +7,17 @@ import { Trash2, AlertCircle, Plus, Edit3, Settings2 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
-import { Responsive, WidthProvider } from 'react-grid-layout';
+import * as RGL from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
-const ResponsiveGridLayout = WidthProvider(Responsive);
+// Robust import handling for RGL which can be finicky with Vite/ESM
+const Responsive = RGL.Responsive || (RGL as any).default?.Responsive || (RGL as any).default;
+const WidthProvider = RGL.WidthProvider || (RGL as any).default?.WidthProvider;
+
+// Fallback if WidthProvider is still not found (though it should be)
+const ResponsiveGridLayout = WidthProvider ? WidthProvider(Responsive) : Responsive;
 
 export default function Dashboards() {
   const { activeProject, deleteChart, updateChart, activeProjectId } = useSheet();
