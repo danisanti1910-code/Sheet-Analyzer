@@ -7,7 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Trash2, AlertCircle, Plus, Edit3, Settings2, LayoutDashboard, PanelRight, PanelRightClose } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
@@ -15,6 +15,11 @@ import 'react-resizable/css/styles.css';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
+
+const GRID_COLS = 12;
+const ROW_HEIGHT = 100;
+const MARGIN: [number, number] = [16, 16];
+const CONTAINER_PADDING: [number, number] = [24, 24];
 
 function DashboardChartWrapper({ chart, data }: { chart: SavedChart, data: SheetData }) {
   // Apply filters if they exist
@@ -130,6 +135,8 @@ export default function Dashboards() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [tempName, setTempName] = useState("");
   const [, setLocation] = useLocation();
+  const [isDragging, setIsDragging] = useState(false);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   if (!activeProject || !activeProject.sheetData) {
     return (
@@ -178,24 +185,33 @@ export default function Dashboards() {
     })) || [];
   }, [activeProject.charts]);
 
-  const handleLayoutChange = (currentLayout: readonly any[], layouts: any) => {
-    (currentLayout as any[]).forEach((l) => {
-      const chart = activeProject.charts.find(c => c.id === l.i);
-      if (chart) {
-        const hasChanged = 
-          chart.dashboardLayout?.x !== l.x ||
-          chart.dashboardLayout?.y !== l.y ||
-          chart.dashboardLayout?.w !== l.w ||
-          chart.dashboardLayout?.h !== l.h;
-        
-        if (hasChanged) {
-           updateChart(l.i, {
-             dashboardLayout: { x: l.x, y: l.y, w: l.w, h: l.h }
-           });
+  const handleLayoutChange = useCallback((currentLayout: readonly any[], layouts: any) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    
+    debounceRef.current = setTimeout(() => {
+      (currentLayout as any[]).forEach((l) => {
+        const chart = activeProject.charts.find(c => c.id === l.i);
+        if (chart) {
+          const hasChanged = 
+            chart.dashboardLayout?.x !== l.x ||
+            chart.dashboardLayout?.y !== l.y ||
+            chart.dashboardLayout?.w !== l.w ||
+            chart.dashboardLayout?.h !== l.h;
+          
+          if (hasChanged) {
+             updateChart(l.i, {
+               dashboardLayout: { x: l.x, y: l.y, w: l.w, h: l.h }
+             });
+          }
         }
-      }
-    });
-  };
+      });
+    }, 300);
+  }, [activeProject.charts, updateChart]);
+
+  const handleDragStart = useCallback(() => setIsDragging(true), []);
+  const handleDragStop = useCallback(() => setIsDragging(false), []);
+  const handleResizeStart = useCallback(() => setIsDragging(true), []);
+  const handleResizeStop = useCallback(() => setIsDragging(false), []);
 
   return (
     <Layout>
@@ -220,16 +236,39 @@ export default function Dashboards() {
             <p>No hay gráficas guardadas en este proyecto.</p>
           </div>
         ) : (
-          <div className="pb-20">
+          <div className="pb-20 relative">
+             {isDragging && (
+               <div 
+                 className="absolute inset-0 pointer-events-none z-0 rounded-lg"
+                 style={{
+                   backgroundImage: `
+                     linear-gradient(to right, rgba(59, 130, 246, 0.1) 1px, transparent 1px),
+                     linear-gradient(to bottom, rgba(59, 130, 246, 0.1) 1px, transparent 1px)
+                   `,
+                   backgroundSize: `calc((100% - ${CONTAINER_PADDING[0] * 2}px) / ${GRID_COLS}) ${ROW_HEIGHT + MARGIN[1]}px`,
+                   backgroundPosition: `${CONTAINER_PADDING[0]}px ${CONTAINER_PADDING[1]}px`,
+                   border: '2px dashed rgba(59, 130, 246, 0.3)',
+                 }}
+               />
+             )}
              <ResponsiveGridLayout
                 className="layout"
                 layouts={{ lg: layout }}
                 breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
-                cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
-                rowHeight={100}
+                cols={{ lg: GRID_COLS, md: 10, sm: 6, xs: 4, xxs: 2 }}
+                rowHeight={ROW_HEIGHT}
+                margin={MARGIN}
+                containerPadding={CONTAINER_PADDING}
                 onLayoutChange={handleLayoutChange}
+                onDragStart={handleDragStart}
+                onDragStop={handleDragStop}
+                onResizeStart={handleResizeStart}
+                onResizeStop={handleResizeStop}
                 draggableHandle=".drag-handle"
                 resizeHandles={['s', 'w', 'e', 'n', 'sw', 'nw', 'se', 'ne']}
+                preventCollision={false}
+                compactType="vertical"
+                isBounded={true}
              >
                 {activeProject.charts.map((chart) => (
                   <div key={chart.id} className="bg-background shadow-md border rounded-lg overflow-hidden flex flex-col">

@@ -7,12 +7,17 @@ import { CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Trash2, AlertCircle, Settings2, ExternalLink, PanelRight, PanelRightClose } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback, useRef } from 'react';
 import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
+
+const GRID_COLS = 12;
+const ROW_HEIGHT = 100;
+const MARGIN: [number, number] = [16, 16];
+const CONTAINER_PADDING: [number, number] = [24, 24];
 
 function GlobalDashboardChartWrapper({ item, project, chart }: { item: GlobalDashboardItem, project: Project, chart: SavedChart }) {
   const data = project.sheetData;
@@ -83,32 +88,43 @@ function GlobalDashboardChartWrapper({ item, project, chart }: { item: GlobalDas
 export default function GlobalDashboard() {
   const { globalDashboardItems, projects, removeFromGlobalDashboard, updateGlobalDashboardLayout, updateChart } = useSheet();
   const [, setLocation] = useLocation();
+  const [isDragging, setIsDragging] = useState(false);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const layout = useMemo(() => {
     return globalDashboardItems.map((item, index) => ({
       i: item.id,
-      x: item.layout.x,
-      y: item.layout.y,
-      w: item.layout.w,
-      h: item.layout.h,
+      x: item.layout.x ?? 0,
+      y: item.layout.y ?? index * 4,
+      w: item.layout.w ?? 6,
+      h: item.layout.h ?? 4,
       minW: 3,
       minH: 2
     }));
   }, [globalDashboardItems]);
 
-  const handleLayoutChange = (currentLayout: readonly any[], layouts: any) => {
-    const newItems = globalDashboardItems.map(item => {
-        const l = (currentLayout as any[]).find(l => l.i === item.id);
-        if (l) {
-            return {
-                ...item,
-                layout: { x: l.x, y: l.y, w: l.w, h: l.h }
-            };
-        }
-        return item;
-    });
-    updateGlobalDashboardLayout(newItems);
-  };
+  const handleLayoutChange = useCallback((currentLayout: readonly any[], layouts: any) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    
+    debounceRef.current = setTimeout(() => {
+      const newItems = globalDashboardItems.map(item => {
+          const l = (currentLayout as any[]).find(l => l.i === item.id);
+          if (l) {
+              return {
+                  ...item,
+                  layout: { x: l.x, y: l.y, w: l.w, h: l.h }
+              };
+          }
+          return item;
+      });
+      updateGlobalDashboardLayout(newItems);
+    }, 300);
+  }, [globalDashboardItems, updateGlobalDashboardLayout]);
+
+  const handleDragStart = useCallback(() => setIsDragging(true), []);
+  const handleDragStop = useCallback(() => setIsDragging(false), []);
+  const handleResizeStart = useCallback(() => setIsDragging(true), []);
+  const handleResizeStop = useCallback(() => setIsDragging(false), []);
 
   return (
     <Layout>
@@ -135,16 +151,39 @@ export default function GlobalDashboard() {
             </Button>
           </div>
         ) : (
-          <div className="pb-20">
+          <div className="pb-20 relative">
+             {isDragging && (
+               <div 
+                 className="absolute inset-0 pointer-events-none z-0 rounded-lg"
+                 style={{
+                   backgroundImage: `
+                     linear-gradient(to right, rgba(59, 130, 246, 0.1) 1px, transparent 1px),
+                     linear-gradient(to bottom, rgba(59, 130, 246, 0.1) 1px, transparent 1px)
+                   `,
+                   backgroundSize: `calc((100% - ${CONTAINER_PADDING[0] * 2}px) / ${GRID_COLS}) ${ROW_HEIGHT + MARGIN[1]}px`,
+                   backgroundPosition: `${CONTAINER_PADDING[0]}px ${CONTAINER_PADDING[1]}px`,
+                   border: '2px dashed rgba(59, 130, 246, 0.3)',
+                 }}
+               />
+             )}
              <ResponsiveGridLayout
                 className="layout"
                 layouts={{ lg: layout }}
                 breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
-                cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
-                rowHeight={100}
+                cols={{ lg: GRID_COLS, md: 10, sm: 6, xs: 4, xxs: 2 }}
+                rowHeight={ROW_HEIGHT}
+                margin={MARGIN}
+                containerPadding={CONTAINER_PADDING}
                 onLayoutChange={handleLayoutChange}
+                onDragStart={handleDragStart}
+                onDragStop={handleDragStop}
+                onResizeStart={handleResizeStart}
+                onResizeStop={handleResizeStop}
                 draggableHandle=".drag-handle"
                 resizeHandles={['s', 'w', 'e', 'n', 'sw', 'nw', 'se', 'ne']}
+                preventCollision={false}
+                compactType="vertical"
+                isBounded={true}
              >
                 {globalDashboardItems.map((item) => {
                   const project = projects.find(p => p.id === item.projectId);
