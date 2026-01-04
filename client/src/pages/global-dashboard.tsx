@@ -193,7 +193,7 @@ export default function GlobalDashboard() {
                   if (!project || !chart) return null; // Should handle orphaned items cleaner
 
                   return (
-                    <div key={item.id} className="bg-background shadow-md border rounded-lg overflow-hidden flex flex-col">
+                    <div key={item.id} className="bg-background shadow-md border rounded-lg overflow-hidden flex flex-col h-full">
                       <CardHeader className="flex flex-row items-center justify-between py-2 px-4 border-b bg-muted/20 shrink-0 drag-handle cursor-move">
                         <div className="flex items-center gap-2 overflow-hidden">
                           <CardTitle className="text-xs font-bold truncate uppercase tracking-tight select-none">
@@ -223,7 +223,7 @@ export default function GlobalDashboard() {
                           </Button>
                         </div>
                       </CardHeader>
-                      <div className="flex-1 min-h-0 bg-white dark:bg-black/20 p-2 overflow-hidden pointer-events-none select-none">
+                      <div className="flex-1 min-h-0 bg-white dark:bg-black/20 p-2 overflow-hidden pointer-events-none select-none h-full">
                          <GlobalDashboardChartWrapper item={item} project={project} chart={chart} />
                       </div>
                     </div>
