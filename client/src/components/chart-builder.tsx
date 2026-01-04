@@ -453,8 +453,10 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
 
   if (hideControls) {
     return (
-      <div ref={containerRef} className="w-full h-full" key={resizeKey}>
-        {renderChart()}
+      <div ref={containerRef} className="w-full h-full relative" key={resizeKey}>
+        <div className="absolute inset-0">
+          {renderChart()}
+        </div>
       </div>
     );
   }
