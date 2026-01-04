@@ -34,9 +34,16 @@ export default function Projects() {
     }
   };
 
-  const openProject = (id: string) => {
-    setActiveProjectId(id);
-    setLocation("/analyze");
+  const openProject = (project: any) => {
+    setActiveProjectId(project.id);
+    
+    // Si tiene datos, vamos directo al dashboard (o detalles)
+    if (project.sheetData) {
+        setLocation(`/projects/${project.id}/dashboards`);
+    } else {
+        // Si no tiene datos, vamos a la pantalla de análisis para cargar/configurar
+        setLocation(`/projects/${project.id}/charts/new`);
+    }
   };
 
   return (
@@ -125,7 +132,7 @@ export default function Projects() {
                   </div>
                 </CardContent>
                 <CardFooter className="pt-0">
-                  <Button variant="secondary" className="w-full gap-2" onClick={() => openProject(project.id)}>
+                  <Button variant="secondary" className="w-full gap-2" onClick={() => openProject(project)}>
                     Abrir Proyecto <ArrowRight className="h-4 w-4" />
                   </Button>
                 </CardFooter>
