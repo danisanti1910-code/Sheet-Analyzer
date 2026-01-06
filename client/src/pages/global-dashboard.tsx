@@ -23,6 +23,14 @@ function GlobalDashboardChartWrapper({ item, project, chart }: { item: GlobalDas
   const data = project.sheetData;
   if (!data) return <div className="p-4 text-xs text-muted-foreground">Datos no disponibles</div>;
 
+  const selectedColumns = useMemo(() => {
+    if (chart.chartConfig.selectedColumns?.length) return chart.chartConfig.selectedColumns;
+    const fallback: string[] = [];
+    if (chart.chartConfig.xAxis) fallback.push(chart.chartConfig.xAxis);
+    if (Array.isArray(chart.chartConfig.yAxis)) fallback.push(...chart.chartConfig.yAxis);
+    return fallback;
+  }, [chart.chartConfig.selectedColumns, chart.chartConfig.xAxis, chart.chartConfig.yAxis]);
+
   // Re-use logic for filtering
   const filteredData = useMemo(() => {
     if (!chart.chartConfig.filteredValues) return data;
@@ -55,14 +63,14 @@ function GlobalDashboardChartWrapper({ item, project, chart }: { item: GlobalDas
     // Lightweight profile clone/update if needed
     // For now returning filtered rows is main priority
     return { ...data, rows, rowCount: rows.length };
-  }, [data, chart.chartConfig.filteredValues]);
+  }, [data, chart.chartConfig.filteredValues, selectedColumns]);
 
   return (
     <div className="w-full h-full flex flex-col md:flex-row gap-2 overflow-hidden pointer-events-auto">
       <div className={`flex-1 min-h-0 min-w-0 ${chart.includeInsights ? 'md:w-2/3' : 'w-full'}`}>
          <ChartBuilder 
             data={filteredData} 
-            selectedColumns={chart.chartConfig.selectedColumns}
+            selectedColumns={selectedColumns}
             hideControls
             initialConfig={chart.chartConfig}
          />
