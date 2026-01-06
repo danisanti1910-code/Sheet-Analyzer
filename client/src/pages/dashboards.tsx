@@ -22,6 +22,14 @@ const MARGIN: [number, number] = [16, 16];
 const CONTAINER_PADDING: [number, number] = [24, 24];
 
 function DashboardChartWrapper({ chart, data }: { chart: SavedChart, data: SheetData }) {
+  const selectedColumns = useMemo(() => {
+    if (chart.chartConfig.selectedColumns?.length) return chart.chartConfig.selectedColumns;
+    const fallback: string[] = [];
+    if (chart.chartConfig.xAxis) fallback.push(chart.chartConfig.xAxis);
+    if (Array.isArray(chart.chartConfig.yAxis)) fallback.push(...chart.chartConfig.yAxis);
+    return fallback;
+  }, [chart.chartConfig.selectedColumns, chart.chartConfig.xAxis, chart.chartConfig.yAxis]);
+
   // Apply filters if they exist
   const filteredData = useMemo(() => {
     if (!chart.chartConfig.filteredValues) return data;
@@ -60,7 +68,7 @@ function DashboardChartWrapper({ chart, data }: { chart: SavedChart, data: Sheet
     // Let's recalculate profiles for selected columns only to be efficient.
     
     const profiles: any = { ...data.columnProfiles };
-    chart.chartConfig.selectedColumns.forEach(col => {
+    selectedColumns.forEach(col => {
       const values = rows.map(r => r[col]);
       const nonNullValues = values.filter(v => v !== null && v !== undefined && v !== '');
       const missingCount = values.length - nonNullValues.length;
@@ -99,14 +107,14 @@ function DashboardChartWrapper({ chart, data }: { chart: SavedChart, data: Sheet
     });
 
     return { ...data, rows, rowCount: rows.length, columnProfiles: profiles };
-  }, [data, chart.chartConfig.filteredValues]);
+  }, [data, chart.chartConfig.filteredValues, selectedColumns]);
 
   return (
     <div className="w-full h-full flex flex-col md:flex-row gap-2 overflow-hidden pointer-events-auto">
       <div className={`flex-1 min-h-0 min-w-0 ${chart.includeInsights ? 'md:w-2/3' : 'w-full'}`}>
          <ChartBuilder 
             data={filteredData} 
-            selectedColumns={chart.chartConfig.selectedColumns}
+            selectedColumns={selectedColumns}
             hideControls
             initialConfig={chart.chartConfig}
          />
