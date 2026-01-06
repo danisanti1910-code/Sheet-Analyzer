@@ -103,7 +103,7 @@ function DashboardChartWrapper({ chart, data }: { chart: SavedChart, data: Sheet
 
   return (
     <div className="w-full h-full flex flex-col md:flex-row gap-2 overflow-hidden pointer-events-auto">
-      <div className={`flex-1 min-h-0 min-w-0 ${chart.includeInsights ? 'md:w-2/3' : 'w-full'}`}>
+      <div className={`flex-1 min-h-0 min-w-0 h-full ${chart.includeInsights ? 'md:w-2/3' : 'w-full'}`}>
          <ChartBuilder 
             data={filteredData} 
             selectedColumns={chart.chartConfig.selectedColumns}
@@ -210,10 +210,10 @@ export default function Dashboards() {
     setLocation(`/projects/${params.projectId || activeProjectId}/charts/${chartId}`);
   };
 
-  const handleNewAnalysis = () => {
+  const handleNewAnalysis = async () => {
      const pid = params.projectId || activeProjectId;
      if (!pid || !project) return;
-     const newId = createChart(pid, {
+     const newId = await createChart(pid, {
         chartType: 'bar',
         xAxis: '',
         yAxis: [],
