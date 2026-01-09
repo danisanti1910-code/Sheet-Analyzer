@@ -21,7 +21,7 @@ const ROW_HEIGHT = 100;
 const MARGIN: [number, number] = [16, 16];
 const CONTAINER_PADDING: [number, number] = [24, 24];
 
-function DashboardChartWrapper({ chart, data }: { chart: SavedChart, data: SheetData }) {
+function DashboardChartWrapper({ chart, data, layoutHeight }: { chart: SavedChart, data: SheetData, layoutHeight: number }) {
   // Apply filters if they exist
   const filteredData = useMemo(() => {
     if (!chart.chartConfig.filteredValues) return data;
@@ -101,17 +101,19 @@ function DashboardChartWrapper({ chart, data }: { chart: SavedChart, data: Sheet
     return { ...data, rows, rowCount: rows.length, columnProfiles: profiles };
   }, [data, chart.chartConfig.filteredValues]);
 
+  // Calculate available height for chart (subtract header ~44px and padding ~16px)
+  const chartHeight = Math.max(layoutHeight - 60, 100);
+  
   return (
-    <div className="w-full h-full flex flex-col md:flex-row gap-2 overflow-hidden pointer-events-auto absolute inset-0">
-      <div className={`relative ${chart.includeInsights ? 'md:w-2/3 h-full' : 'w-full h-full'}`}>
-         <div className="absolute inset-0">
+    <div className="w-full flex flex-row gap-2 overflow-hidden pointer-events-auto" style={{ height: chartHeight }}>
+      <div className={`${chart.includeInsights ? 'w-2/3' : 'w-full'}`} style={{ height: chartHeight }}>
            <ChartBuilder 
               data={filteredData} 
               selectedColumns={chart.chartConfig.selectedColumns}
               hideControls
               initialConfig={chart.chartConfig}
+              containerHeight={chartHeight}
            />
-         </div>
       </div>
       {chart.includeInsights && (
         <div className="md:w-1/3 min-w-0 overflow-y-auto overflow-x-hidden bg-slate-50 dark:bg-slate-900/50 p-2 rounded border flex flex-col">
@@ -323,8 +325,12 @@ export default function Dashboards() {
                         </Button>
                       </div>
                     </CardHeader>
-                    <div className="flex-1 min-h-0 bg-white dark:bg-black/20 p-2 overflow-hidden pointer-events-none select-none relative">
-                       <DashboardChartWrapper chart={chart} data={project.sheetData!} />
+                    <div className="flex-1 min-h-0 bg-white dark:bg-black/20 p-2 overflow-hidden pointer-events-none select-none">
+                       <DashboardChartWrapper 
+                         chart={chart} 
+                         data={project.sheetData!} 
+                         layoutHeight={(chart.dashboardLayout?.h || 4) * ROW_HEIGHT + ((chart.dashboardLayout?.h || 4) - 1) * MARGIN[1]} 
+                       />
                     </div>
                   </div>
                 ))}

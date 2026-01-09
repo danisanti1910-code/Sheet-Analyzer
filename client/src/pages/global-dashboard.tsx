@@ -19,7 +19,7 @@ const ROW_HEIGHT = 100;
 const MARGIN: [number, number] = [16, 16];
 const CONTAINER_PADDING: [number, number] = [24, 24];
 
-function GlobalDashboardChartWrapper({ item, project, chart }: { item: GlobalDashboardItem, project: Project, chart: SavedChart }) {
+function GlobalDashboardChartWrapper({ item, project, chart, layoutHeight }: { item: GlobalDashboardItem, project: Project, chart: SavedChart, layoutHeight: number }) {
   const data = project.sheetData;
   if (!data) return <div className="p-4 text-xs text-muted-foreground">Datos no disponibles</div>;
 
@@ -57,17 +57,19 @@ function GlobalDashboardChartWrapper({ item, project, chart }: { item: GlobalDas
     return { ...data, rows, rowCount: rows.length };
   }, [data, chart.chartConfig.filteredValues]);
 
+  // Calculate available height for chart (subtract header ~44px and padding ~16px)
+  const chartHeight = Math.max(layoutHeight - 60, 100);
+  
   return (
-    <div className="w-full h-full flex flex-col md:flex-row gap-2 overflow-hidden pointer-events-auto absolute inset-0">
-      <div className={`relative ${chart.includeInsights ? 'md:w-2/3 h-full' : 'w-full h-full'}`}>
-         <div className="absolute inset-0">
+    <div className="w-full flex flex-row gap-2 overflow-hidden pointer-events-auto" style={{ height: chartHeight }}>
+      <div className={`${chart.includeInsights ? 'w-2/3' : 'w-full'}`} style={{ height: chartHeight }}>
            <ChartBuilder 
               data={filteredData} 
               selectedColumns={chart.chartConfig.selectedColumns}
               hideControls
               initialConfig={chart.chartConfig}
+              containerHeight={chartHeight}
            />
-         </div>
       </div>
       {chart.includeInsights && (
         <div className="md:w-1/3 min-w-0 overflow-y-auto overflow-x-hidden bg-slate-50 dark:bg-slate-900/50 p-2 rounded border flex flex-col">
@@ -225,8 +227,13 @@ export default function GlobalDashboard() {
                           </Button>
                         </div>
                       </CardHeader>
-                      <div className="flex-1 min-h-0 bg-white dark:bg-black/20 p-2 overflow-hidden pointer-events-none select-none relative">
-                         <GlobalDashboardChartWrapper item={item} project={project} chart={chart} />
+                      <div className="flex-1 min-h-0 bg-white dark:bg-black/20 p-2 overflow-hidden pointer-events-none select-none">
+                         <GlobalDashboardChartWrapper 
+                           item={item} 
+                           project={project} 
+                           chart={chart} 
+                           layoutHeight={(item.layout.h || 4) * ROW_HEIGHT + ((item.layout.h || 4) - 1) * MARGIN[1]} 
+                         />
                       </div>
                     </div>
                   );

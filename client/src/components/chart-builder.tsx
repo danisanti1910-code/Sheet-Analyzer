@@ -30,6 +30,7 @@ interface ChartBuilderProps {
   initialConfig?: SavedChart['chartConfig'] & { title?: string };
   onSave?: (config: SavedChart['chartConfig'] & { name: string }, options: { addToProjectDashboard: boolean, addToGlobalDashboard: boolean }) => void;
   isEditing?: boolean;
+  containerHeight?: number;
 }
 
 type ChartType = 'bar' | 'line' | 'area' | 'scatter' | 'pie';
@@ -43,7 +44,7 @@ const COLOR_SCHEMES = {
   sunset: ['#f72585', '#b5179e', '#7209b7', '#560bad', '#480ca8']
 };
 
-export function ChartBuilder({ data, selectedColumns, hideControls = false, initialConfig, onSave, isEditing = false }: ChartBuilderProps) {
+export function ChartBuilder({ data, selectedColumns, hideControls = false, initialConfig, onSave, isEditing = false, containerHeight }: ChartBuilderProps) {
   const [chartType, setChartType] = useState<ChartType>(initialConfig?.chartType || 'bar');
   const [xAxis, setXAxis] = useState<string>(initialConfig?.xAxis || '');
   const [yAxis, setYAxis] = useState<string[]>(initialConfig?.yAxis || []);
@@ -64,17 +65,33 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
   
   const chartRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [resizeKey, setResizeKey] = useState(0);
+  const [containerDimensions, setContainerDimensions] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
     if (!hideControls || !containerRef.current) return;
     
-    const resizeObserver = new ResizeObserver(() => {
-      setResizeKey(k => k + 1);
+    const updateDimensions = () => {
+      if (containerRef.current) {
+        const { width, height } = containerRef.current.getBoundingClientRect();
+        if (width > 0 && height > 0) {
+          setContainerDimensions({ width, height });
+        }
+      }
+    };
+    
+    // Initial update with delay to allow layout to settle
+    const initialTimeout = setTimeout(updateDimensions, 50);
+    
+    const resizeObserver = new ResizeObserver((entries) => {
+      // Use requestAnimationFrame to ensure we get the final dimensions
+      requestAnimationFrame(updateDimensions);
     });
     
     resizeObserver.observe(containerRef.current);
-    return () => resizeObserver.disconnect();
+    return () => {
+      clearTimeout(initialTimeout);
+      resizeObserver.disconnect();
+    };
   }, [hideControls]);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -253,13 +270,17 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
 
     const renderChartByType = () => {
       const pieKey = plotKeys[0];
-      // Use 99% to prevent potential scrollbar flicker in some browsers
-      const containerHeight = hideControls ? "99%" : 400;
+      // Use explicit containerHeight prop if provided, otherwise use measured dimensions or fixed height
+      const chartHeightValue = containerHeight 
+        ? containerHeight 
+        : (hideControls 
+            ? (containerDimensions.height > 0 ? containerDimensions.height : 300)
+            : 400);
       
       switch (chartType) {
         case 'bar':
           return (
-            <ResponsiveContainer width="100%" height={containerHeight}>
+            <ResponsiveContainer width="100%" height={chartHeightValue}>
               <BarChart {...commonProps}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} vertical={false} />
                 <XAxis 
@@ -291,7 +312,7 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
           );
         case 'line':
           return (
-            <ResponsiveContainer width="100%" height={containerHeight}>
+            <ResponsiveContainer width="100%" height={chartHeightValue}>
               <LineChart {...commonProps}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} vertical={false} />
                 <XAxis 
@@ -330,7 +351,7 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
           );
         case 'area':
           return (
-            <ResponsiveContainer width="100%" height={containerHeight}>
+            <ResponsiveContainer width="100%" height={chartHeightValue}>
               <AreaChart {...commonProps}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} vertical={false} />
                 <XAxis 
@@ -369,7 +390,7 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
           );
         case 'pie':
           return (
-            <ResponsiveContainer width="100%" height={containerHeight}>
+            <ResponsiveContainer width="100%" height={chartHeightValue}>
               <PieChart>
                 <Pie
                   data={processedData.slice(0, 10)}
@@ -413,7 +434,7 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
           );
         case 'scatter':
           return (
-            <ResponsiveContainer width="100%" height={containerHeight}>
+            <ResponsiveContainer width="100%" height={chartHeightValue}>
               <ScatterChart {...commonProps}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                 <XAxis 
@@ -452,11 +473,16 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
   };
 
   if (hideControls) {
+    // If containerHeight prop is provided, use it directly; otherwise fallback to measured dimensions
+    const hasHeight = containerHeight || containerDimensions.height > 0;
     return (
-      <div ref={containerRef} className="w-full h-full relative" key={resizeKey}>
-        <div className="absolute inset-0">
-          {renderChart()}
-        </div>
+      <div ref={containerRef} className="w-full h-full">
+        {hasHeight && renderChart()}
+        {!hasHeight && (
+          <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+            Cargando gráfica...
+          </div>
+        )}
       </div>
     );
   }
