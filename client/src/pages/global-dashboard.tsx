@@ -58,14 +58,16 @@ function GlobalDashboardChartWrapper({ item, project, chart }: { item: GlobalDas
   }, [data, chart.chartConfig.filteredValues]);
 
   return (
-    <div className="w-full h-full flex flex-col md:flex-row gap-2 overflow-hidden pointer-events-auto">
-      <div className={`flex-1 min-h-0 min-w-0 h-full ${chart.includeInsights ? 'md:w-2/3' : 'w-full'}`}>
-         <ChartBuilder 
-            data={filteredData} 
-            selectedColumns={chart.chartConfig.selectedColumns}
-            hideControls
-            initialConfig={chart.chartConfig}
-         />
+    <div className="w-full h-full flex flex-col md:flex-row gap-2 overflow-hidden pointer-events-auto absolute inset-0">
+      <div className={`relative ${chart.includeInsights ? 'md:w-2/3 h-full' : 'w-full h-full'}`}>
+         <div className="absolute inset-0">
+           <ChartBuilder 
+              data={filteredData} 
+              selectedColumns={chart.chartConfig.selectedColumns}
+              hideControls
+              initialConfig={chart.chartConfig}
+           />
+         </div>
       </div>
       {chart.includeInsights && (
         <div className="md:w-1/3 min-w-0 overflow-y-auto overflow-x-hidden bg-slate-50 dark:bg-slate-900/50 p-2 rounded border flex flex-col">
@@ -223,7 +225,7 @@ export default function GlobalDashboard() {
                           </Button>
                         </div>
                       </CardHeader>
-                      <div className="flex-1 min-h-0 bg-white dark:bg-black/20 p-2 overflow-hidden pointer-events-none select-none h-full">
+                      <div className="flex-1 min-h-0 bg-white dark:bg-black/20 p-2 overflow-hidden pointer-events-none select-none relative">
                          <GlobalDashboardChartWrapper item={item} project={project} chart={chart} />
                       </div>
                     </div>

@@ -69,8 +69,10 @@ Preferred communication style: Simple, everyday language.
 
 ### Recent Fixes (January 2026)
 - **Project creation**: Fixed async/await issue in `handleCreate` - `createProject` returns a Promise that must be awaited
-- **Dashboard charts**: Fixed blank charts by using position absolute for ResponsiveContainer sizing
-- **Dashboard chart height**: Added `h-full` class to DashboardChartWrapper inner div to ensure proper height propagation for charts
+- **Dashboard charts**: Fixed blank charts by using absolute positioning throughout the chart wrapper chain:
+  - DashboardChartWrapper uses `absolute inset-0` on outer container
+  - Chart container uses `relative` parent with `absolute inset-0` inner wrapper
+  - This ensures ResponsiveContainer always receives proper height dimensions from react-grid-layout
 - **New analysis navigation**: Fixed async/await in `handleNewAnalysis` to properly wait for chart creation before navigating
 - **Route-based state**: Pages now extract projectId from URL params and set activeProjectId, enabling direct URL navigation
 - **React hooks order**: All hooks must be called before any conditional returns to avoid "Rendered more hooks" errors
