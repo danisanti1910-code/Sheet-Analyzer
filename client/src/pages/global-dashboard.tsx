@@ -1,13 +1,11 @@
-import { useSheet, GlobalDashboardItem, SavedChart, Project } from '@/lib/sheet-context';
+import { useSheet } from '@/lib/sheet-context';
 import { Layout } from '@/components/layout';
-import { ChartBuilder } from '@/components/chart-builder';
-import { InsightsPanel } from '@/components/insights-panel';
-import { SheetData } from '@/lib/sheet-utils';
+import { ChartPreview } from '@/components/chart-preview';
 import { CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Trash2, AlertCircle, Settings2, ExternalLink, PanelRight, PanelRightClose } from 'lucide-react';
-import { Link, useLocation } from 'wouter';
-import React, { useMemo, useState, useCallback, useRef } from 'react';
+import { Trash2, AlertCircle, ExternalLink, PanelRight, PanelRightClose } from 'lucide-react';
+import { Link } from 'wouter';
+import { useMemo, useState, useCallback, useRef } from 'react';
 import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -19,83 +17,8 @@ const ROW_HEIGHT = 100;
 const MARGIN: [number, number] = [16, 16];
 const CONTAINER_PADDING: [number, number] = [24, 24];
 
-function GlobalDashboardChartWrapper({ item, project, chart }: { item: GlobalDashboardItem, project: Project, chart: SavedChart }) {
-  const data = project.sheetData;
-  if (!data) return <div className="p-4 text-xs text-muted-foreground">Datos no disponibles</div>;
-
-  const selectedColumns = useMemo(() => {
-    if (chart.chartConfig.selectedColumns?.length) return chart.chartConfig.selectedColumns;
-    const fallback: string[] = [];
-    if (chart.chartConfig.xAxis) fallback.push(chart.chartConfig.xAxis);
-    if (Array.isArray(chart.chartConfig.yAxis)) fallback.push(...chart.chartConfig.yAxis);
-    return fallback;
-  }, [chart.chartConfig.selectedColumns, chart.chartConfig.xAxis, chart.chartConfig.yAxis]);
-
-  // Re-use logic for filtering
-  const filteredData = useMemo(() => {
-    if (!chart.chartConfig.filteredValues) return data;
-    
-    let rows = data.rows;
-    Object.entries(chart.chartConfig.filteredValues).forEach(([col, values]) => {
-      if (!values || values.length === 0) return;
-
-      if (col.endsWith('_min')) {
-        const actualCol = col.replace('_min', '');
-        const type = data.columnProfiles[actualCol]?.type;
-        if (type === 'numeric') {
-          rows = rows.filter(r => Number(r[actualCol]) >= Number(values[0]));
-        } else if (type === 'datetime') {
-          rows = rows.filter(r => new Date(r[actualCol]) >= new Date(values[0]));
-        }
-      } else if (col.endsWith('_max')) {
-        const actualCol = col.replace('_max', '');
-        const type = data.columnProfiles[actualCol]?.type;
-        if (type === 'numeric') {
-          rows = rows.filter(r => Number(r[actualCol]) <= Number(values[0]));
-        } else if (type === 'datetime') {
-          rows = rows.filter(r => new Date(r[actualCol]) <= new Date(values[0]));
-        }
-      } else {
-        rows = rows.filter(r => values.includes(String(r[col])));
-      }
-    });
-
-    // Lightweight profile clone/update if needed
-    // For now returning filtered rows is main priority
-    return { ...data, rows, rowCount: rows.length };
-  }, [data, chart.chartConfig.filteredValues, selectedColumns]);
-
-  return (
-    <div className="w-full h-full flex flex-col md:flex-row gap-2 overflow-hidden pointer-events-auto">
-      <div className={`flex-1 min-h-0 min-w-0 ${chart.includeInsights ? 'md:w-2/3' : 'w-full'}`}>
-         <ChartBuilder 
-            data={filteredData} 
-            selectedColumns={selectedColumns}
-            hideControls
-            initialConfig={chart.chartConfig}
-         />
-      </div>
-      {chart.includeInsights && (
-        <div className="md:w-1/3 min-w-0 overflow-y-auto overflow-x-hidden bg-slate-50 dark:bg-slate-900/50 p-2 rounded border flex flex-col">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 px-1 shrink-0">Insights</h4>
-            <div className="flex-1 min-h-0 overflow-y-auto">
-               <InsightsPanel 
-                  sheetData={filteredData} 
-                  sourceData={data}
-                  selectedColumns={chart.chartConfig.selectedColumns} 
-                  filteredValues={chart.chartConfig.filteredValues || {}}
-                  onFilterChange={() => {}} 
-               />
-            </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function GlobalDashboard() {
   const { globalDashboardItems, projects, removeFromGlobalDashboard, updateGlobalDashboardLayout, updateChart } = useSheet();
-  const [, setLocation] = useLocation();
   const [isDragging, setIsDragging] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -199,6 +122,44 @@ export default function GlobalDashboard() {
                   const chart = project?.charts?.find(c => c.id === item.chartId);
 
                   if (!project || !chart) return null; // Should handle orphaned items cleaner
+                  if (!project.sheetData) {
+                    return (
+                      <div key={item.id} className="bg-background shadow-md border rounded-lg overflow-hidden flex flex-col h-full">
+                        <CardHeader className="flex flex-row items-center justify-between py-2 px-4 border-b bg-muted/20 shrink-0 drag-handle cursor-move">
+                          <div className="flex items-center gap-2 overflow-hidden">
+                            <CardTitle className="text-xs font-bold truncate uppercase tracking-tight select-none">
+                              {chart.name} 
+                            </CardTitle>
+                            <span className="text-[10px] text-muted-foreground bg-white px-1.5 py-0.5 rounded border truncate max-w-[100px]">
+                              {project.name}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1" onMouseDown={e => e.stopPropagation()}>
+                            <Button 
+                               variant="ghost" 
+                               size="icon" 
+                               className={`h-7 w-7 ${chart.includeInsights ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary'}`}
+                               onClick={() => updateChart(chart.id, { includeInsights: !chart.includeInsights })}
+                               title={chart.includeInsights ? "Ocultar Insights" : "Mostrar Insights"}
+                            >
+                              {chart.includeInsights ? <PanelRightClose className="w-4 h-4" /> : <PanelRight className="w-4 h-4" />}
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" asChild>
+                               <Link href={`/projects/${project.id}/charts/${chart.id}`}>
+                                  <ExternalLink className="w-4 h-4" />
+                               </Link>
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => removeFromGlobalDashboard(item.id)}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </CardHeader>
+                        <div className="flex-1 min-h-0 bg-white dark:bg-black/20 p-4 text-xs text-muted-foreground">
+                          Datos no disponibles
+                        </div>
+                      </div>
+                    );
+                  }
 
                   return (
                     <div key={item.id} className="bg-background shadow-md border rounded-lg overflow-hidden flex flex-col h-full">
@@ -232,7 +193,7 @@ export default function GlobalDashboard() {
                         </div>
                       </CardHeader>
                       <div className="flex-1 min-h-0 bg-white dark:bg-black/20 p-2 overflow-hidden pointer-events-none select-none h-full">
-                         <GlobalDashboardChartWrapper item={item} project={project} chart={chart} />
+                        <ChartPreview chart={chart} data={project.sheetData} />
                       </div>
                     </div>
                   );
