@@ -96,8 +96,12 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
   }, [JSON.stringify(initialConfig)]);
 
   useEffect(() => {
+    const hasInitialConfig = Boolean(
+      initialConfig && (initialConfig.xAxis || (initialConfig.yAxis && initialConfig.yAxis.length > 0))
+    );
+
     // Auto-selection logic for NEW charts only
-    if (!initialConfig && selectedColumns.length > 0) {
+    if (!hasInitialConfig && selectedColumns.length > 0) {
       const numerics = selectedColumns.filter(c => data.columnProfiles[c]?.type === 'numeric');
       const categoricals = selectedColumns.filter(c => data.columnProfiles[c]?.type === 'categorical' || data.columnProfiles[c]?.type === 'boolean');
       const datetimes = selectedColumns.filter(c => data.columnProfiles[c]?.type === 'datetime');
@@ -130,11 +134,11 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
       }
     }
 
-    if (selectedColumns.length === 0) {
+    if (!hasInitialConfig && selectedColumns.length === 0) {
       setXAxis('');
       setYAxis([]);
     }
-  }, [selectedColumns, data.columnProfiles]);
+  }, [selectedColumns, data.columnProfiles, initialConfig]);
 
   const processedData = useMemo(() => {
     if (!data.rows || data.rows.length === 0 || !xAxis) return [];
