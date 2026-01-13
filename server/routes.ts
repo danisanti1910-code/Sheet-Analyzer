@@ -3,19 +3,53 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertProjectSchema, insertChartSchema, insertGlobalDashboardItemSchema } from "@shared/schema";
 import { z } from "zod";
+import { formatDatabaseError, isDatabaseConnected, lastDatabaseError, testConnection } from "./db";
+
+// Helper to create error response with detailed info
+function createErrorResponse(error: any, defaultMessage: string): { error: string; details?: string; code?: string } {
+  const formattedError = formatDatabaseError(error);
+  const isDatabaseError = error?.code && (
+    ["EAI_AGAIN", "ENOTFOUND", "ECONNREFUSED", "ETIMEDOUT", "28P01", "28000", "3D000"].includes(error.code) ||
+    error.message?.includes("EAI_AGAIN")
+  );
+
+  if (isDatabaseError) {
+    return {
+      error: "Database connection error",
+      details: formattedError,
+      code: "DATABASE_ERROR"
+    };
+  }
+
+  return { error: defaultMessage };
+}
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  
+
+  // Health check endpoint
+  app.get("/api/health", async (req, res) => {
+    const dbConnected = await testConnection();
+    res.status(dbConnected ? 200 : 503).json({
+      status: dbConnected ? "healthy" : "unhealthy",
+      database: {
+        connected: dbConnected,
+        error: lastDatabaseError
+      },
+      timestamp: new Date().toISOString()
+    });
+  });
+
   // Projects
   app.get("/api/projects", async (req, res) => {
     try {
       const projects = await storage.getAllProjects();
       res.json(projects);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch projects" });
+      console.error("[routes] Failed to fetch projects:", error);
+      res.status(500).json(createErrorResponse(error, "Failed to fetch projects"));
     }
   });
 
@@ -27,7 +61,8 @@ export async function registerRoutes(
       }
       res.json(project);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch project" });
+      console.error("[routes] Failed to fetch project:", error);
+      res.status(500).json(createErrorResponse(error, "Failed to fetch project"));
     }
   });
 
@@ -40,7 +75,8 @@ export async function registerRoutes(
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: error.errors });
       }
-      res.status(500).json({ error: "Failed to create project" });
+      console.error("[routes] Failed to create project:", error);
+      res.status(500).json(createErrorResponse(error, "Failed to create project"));
     }
   });
 
@@ -56,7 +92,8 @@ export async function registerRoutes(
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: error.errors });
       }
-      res.status(500).json({ error: "Failed to update project" });
+      console.error("[routes] Failed to update project:", error);
+      res.status(500).json(createErrorResponse(error, "Failed to update project"));
     }
   });
 
@@ -65,7 +102,8 @@ export async function registerRoutes(
       await storage.deleteProject(req.params.id);
       res.status(204).send();
     } catch (error) {
-      res.status(500).json({ error: "Failed to delete project" });
+      console.error("[routes] Failed to delete project:", error);
+      res.status(500).json(createErrorResponse(error, "Failed to delete project"));
     }
   });
 
@@ -75,7 +113,8 @@ export async function registerRoutes(
       const charts = await storage.getChartsByProject(req.params.projectId);
       res.json(charts);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch charts" });
+      console.error("[routes] Failed to fetch charts:", error);
+      res.status(500).json(createErrorResponse(error, "Failed to fetch charts"));
     }
   });
 
@@ -87,7 +126,8 @@ export async function registerRoutes(
       }
       res.json(chart);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch chart" });
+      console.error("[routes] Failed to fetch chart:", error);
+      res.status(500).json(createErrorResponse(error, "Failed to fetch chart"));
     }
   });
 
@@ -100,7 +140,8 @@ export async function registerRoutes(
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: error.errors });
       }
-      res.status(500).json({ error: "Failed to create chart" });
+      console.error("[routes] Failed to create chart:", error);
+      res.status(500).json(createErrorResponse(error, "Failed to create chart"));
     }
   });
 
@@ -116,7 +157,8 @@ export async function registerRoutes(
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: error.errors });
       }
-      res.status(500).json({ error: "Failed to update chart" });
+      console.error("[routes] Failed to update chart:", error);
+      res.status(500).json(createErrorResponse(error, "Failed to update chart"));
     }
   });
 
@@ -125,7 +167,8 @@ export async function registerRoutes(
       await storage.deleteChart(req.params.id);
       res.status(204).send();
     } catch (error) {
-      res.status(500).json({ error: "Failed to delete chart" });
+      console.error("[routes] Failed to delete chart:", error);
+      res.status(500).json(createErrorResponse(error, "Failed to delete chart"));
     }
   });
 
@@ -135,7 +178,8 @@ export async function registerRoutes(
       const items = await storage.getAllGlobalDashboardItems();
       res.json(items);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch global dashboard items" });
+      console.error("[routes] Failed to fetch global dashboard items:", error);
+      res.status(500).json(createErrorResponse(error, "Failed to fetch global dashboard items"));
     }
   });
 
@@ -148,7 +192,8 @@ export async function registerRoutes(
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: error.errors });
       }
-      res.status(500).json({ error: "Failed to create global dashboard item" });
+      console.error("[routes] Failed to create global dashboard item:", error);
+      res.status(500).json(createErrorResponse(error, "Failed to create global dashboard item"));
     }
   });
 
@@ -158,7 +203,8 @@ export async function registerRoutes(
       await storage.updateGlobalDashboardItem(req.params.id, layout);
       res.status(204).send();
     } catch (error) {
-      res.status(500).json({ error: "Failed to update global dashboard item" });
+      console.error("[routes] Failed to update global dashboard item:", error);
+      res.status(500).json(createErrorResponse(error, "Failed to update global dashboard item"));
     }
   });
 
@@ -167,7 +213,8 @@ export async function registerRoutes(
       await storage.deleteGlobalDashboardItem(req.params.id);
       res.status(204).send();
     } catch (error) {
-      res.status(500).json({ error: "Failed to delete global dashboard item" });
+      console.error("[routes] Failed to delete global dashboard item:", error);
+      res.status(500).json(createErrorResponse(error, "Failed to delete global dashboard item"));
     }
   });
 
