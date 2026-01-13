@@ -151,18 +151,35 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, sheetData: null })
       });
-      if (!response.ok) throw new Error('Failed to create project');
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Create project failed:', response.status, errorData);
+        throw new Error(`Failed to create project: ${response.status}`);
+      }
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+    },
+    onError: (error) => {
+      console.error('Create project mutation error:', error);
+      toast({
+        title: "Error al crear proyecto",
+        description: "No se pudo crear el proyecto. Por favor intente de nuevo.",
+        variant: "destructive"
+      });
     }
   });
 
   const createProject = async (name: string): Promise<string> => {
-    const project = await createProjectMutation.mutateAsync(name);
-    setActiveProjectId(project.id);
-    return project.id;
+    try {
+      const project = await createProjectMutation.mutateAsync(name);
+      setActiveProjectId(project.id);
+      return project.id;
+    } catch (error) {
+      console.error('createProject error:', error);
+      throw error;
+    }
   };
 
   const updateProjectMutation = useMutation({

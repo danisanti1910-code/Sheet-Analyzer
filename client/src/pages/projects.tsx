@@ -2,7 +2,7 @@ import { useSheet } from '@/lib/sheet-context';
 import { Layout } from '@/components/layout';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, FolderOpen, Calendar, ArrowRight, Trash2, LayoutGrid } from 'lucide-react';
+import { Plus, FolderOpen, Calendar, ArrowRight, Trash2, LayoutGrid, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { 
@@ -16,26 +16,48 @@ import {
 import { Input } from '@/components/ui/input';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Projects() {
   const { projects, createProject, setActiveProjectId, deleteProject, user } = useSheet();
   const [, setLocation] = useLocation();
   const [newProjectName, setNewProjectName] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const { toast } = useToast();
 
   if (!user) return null;
 
   const handleCreate = async () => {
-    if (newProjectName.trim()) {
-      try {
-        const newId = await createProject(newProjectName);
-        setNewProjectName("");
-        setIsDialogOpen(false);
-        // Navigate to analysis/new chart immediately
-        setLocation(`/projects/${newId}/charts/new`);
-      } catch (error) {
-        console.error('Failed to create project:', error);
-      }
+    const trimmedName = newProjectName.trim();
+    if (!trimmedName) {
+      toast({
+        title: "Nombre requerido",
+        description: "Por favor ingresa un nombre para el proyecto.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsCreating(true);
+    try {
+      const newId = await createProject(trimmedName);
+      setNewProjectName("");
+      setIsDialogOpen(false);
+      toast({
+        title: "Proyecto creado",
+        description: `"${trimmedName}" se ha creado exitosamente.`
+      });
+      setLocation(`/projects/${newId}/charts/new`);
+    } catch (error) {
+      console.error('Failed to create project:', error);
+      toast({
+        title: "Error al crear proyecto",
+        description: "No se pudo crear el proyecto. Por favor intente de nuevo.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -62,7 +84,7 @@ export default function Projects() {
           
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="gap-2 shadow-lg shadow-primary/20">
+              <Button className="gap-2 shadow-lg shadow-primary/20" data-testid="button-new-project">
                 <Plus className="h-4 w-4" /> Nuevo Proyecto
               </Button>
             </DialogTrigger>
@@ -77,11 +99,15 @@ export default function Projects() {
                   value={newProjectName} 
                   onChange={e => setNewProjectName(e.target.value)} 
                   autoFocus
+                  data-testid="input-project-name"
                 />
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-                <Button onClick={handleCreate}>Crear Proyecto</Button>
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isCreating}>Cancelar</Button>
+                <Button onClick={handleCreate} disabled={isCreating} data-testid="button-create-project-submit">
+                  {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isCreating ? 'Creando...' : 'Crear Proyecto'}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
