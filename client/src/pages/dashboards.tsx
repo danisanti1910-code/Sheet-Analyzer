@@ -8,8 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Trash2, AlertCircle, Plus, Edit3, Settings2, LayoutDashboard, PanelRight, PanelRightClose, BarChart3, LineChart, PieChart, ScatterChart, AreaChart, Filter } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Link, useLocation } from 'wouter';
-import React, { useState, useMemo, useCallback, useRef } from 'react';
+import { Link, useLocation, useRoute } from 'wouter';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
@@ -128,8 +128,8 @@ function DashboardChartWrapper({ chart, data }: { chart: SavedChart, data: Sheet
   }, [data, chart.chartConfig.filteredValues]);
 
   return (
-    <div className="w-full h-full flex flex-col md:flex-row gap-2 overflow-hidden pointer-events-auto">
-      <div className={`flex-1 min-h-0 min-w-0 ${chart.includeInsights ? 'md:w-2/3' : 'w-full'}`}>
+    <div className="w-full h-full flex gap-0 overflow-hidden pointer-events-auto">
+      <div className={`h-full min-h-0 min-w-0 flex flex-col ${chart.includeInsights ? 'w-[65%]' : 'w-full'}`}>
          <ChartBuilder 
             data={filteredData} 
             selectedColumns={chart.chartConfig.selectedColumns}
@@ -138,15 +138,18 @@ function DashboardChartWrapper({ chart, data }: { chart: SavedChart, data: Sheet
          />
       </div>
       {chart.includeInsights && (
-        <div className="md:w-1/3 min-w-0 overflow-y-auto overflow-x-hidden bg-slate-50 dark:bg-slate-900/50 p-2 rounded border flex flex-col">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 px-1 shrink-0">Insights</h4>
-            <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="w-[35%] h-full min-w-0 border-l bg-slate-50/80 dark:bg-slate-900/30 flex flex-col overflow-hidden">
+            <div className="px-3 py-2 border-b bg-muted/30 shrink-0">
+              <h4 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Análisis de Datos</h4>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-2">
                <InsightsPanel 
                   sheetData={filteredData} 
                   sourceData={data}
                   selectedColumns={chart.chartConfig.selectedColumns} 
                   filteredValues={chart.chartConfig.filteredValues || {}}
                   onFilterChange={() => {}}
+                  compact
                />
             </div>
         </div>
@@ -156,50 +159,26 @@ function DashboardChartWrapper({ chart, data }: { chart: SavedChart, data: Sheet
 }
 
 export default function Dashboards() {
-  const { activeProject, deleteChart, updateChart, activeProjectId, createChart, addToGlobalDashboard } = useSheet();
+  const { activeProject, deleteChart, updateChart, activeProjectId, setActiveProjectId, createChart, addToGlobalDashboard, projects } = useSheet();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [tempName, setTempName] = useState("");
   const [, setLocation] = useLocation();
   const [isDragging, setIsDragging] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
-
-  if (!activeProject || !activeProject.sheetData) {
-    return (
-      <Layout>
-        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-          <AlertCircle className="w-16 h-16 text-muted-foreground opacity-50" />
-          <h2 className="text-xl font-semibold">Selecciona un proyecto con datos</h2>
-          <Button asChild><Link href="/">Ir al Inicio</Link></Button>
-        </div>
-      </Layout>
-    );
-  }
-
-  const handleUpdateName = (id: string) => {
-    updateChart(id, { name: tempName });
-    setEditingId(null);
-  };
-
-  const handleNavigateToEdit = (chartId: string) => {
-    setLocation(`/projects/${activeProjectId}/charts/${chartId}`);
-  };
-
-  const handleNewAnalysis = () => {
-     if (!activeProjectId) return;
-     // Create a new chart with default values
-     const newId = createChart(activeProjectId, {
-        chartType: 'bar',
-        xAxis: '',
-        yAxis: [],
-        selectedColumns: []
-     }, `Análisis ${activeProject.charts.length + 1}`, false);
-     
-     // Navigate to the new chart
-     setLocation(`/projects/${activeProjectId}/charts/${newId}`);
-  };
+  const [, params] = useRoute('/projects/:projectId/dashboards');
+  
+  useEffect(() => {
+    if (params?.projectId && params.projectId !== activeProjectId && projects.length > 0) {
+      const projectExists = projects.some(p => p.id === params.projectId);
+      if (projectExists) {
+        setActiveProjectId(params.projectId);
+      }
+    }
+  }, [params?.projectId, activeProjectId, projects, setActiveProjectId]);
 
   const layout = useMemo(() => {
-    return activeProject.charts?.map((chart, index) => ({
+    if (!activeProject?.charts) return [];
+    return activeProject.charts.map((chart, index) => ({
       i: chart.id,
       x: chart.dashboardLayout?.x ?? (index % 2) * 6,
       y: chart.dashboardLayout?.y ?? Math.floor(index / 2) * 4,
@@ -208,10 +187,11 @@ export default function Dashboards() {
       minW: 2,
       minH: 2,
       maxW: GRID_COLS
-    })) || [];
-  }, [activeProject.charts]);
+    }));
+  }, [activeProject?.charts]);
 
   const handleLayoutChange = useCallback((currentLayout: readonly any[], layouts: any) => {
+    if (!activeProject?.charts) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     
     debounceRef.current = setTimeout(() => {
@@ -232,12 +212,45 @@ export default function Dashboards() {
         }
       });
     }, 300);
-  }, [activeProject.charts, updateChart]);
+  }, [activeProject?.charts, updateChart]);
 
   const handleDragStart = useCallback(() => setIsDragging(true), []);
   const handleDragStop = useCallback(() => setIsDragging(false), []);
   const handleResizeStart = useCallback(() => setIsDragging(true), []);
   const handleResizeStop = useCallback(() => setIsDragging(false), []);
+
+  const handleUpdateName = (id: string) => {
+    updateChart(id, { name: tempName });
+    setEditingId(null);
+  };
+
+  const handleNavigateToEdit = (chartId: string) => {
+    setLocation(`/projects/${activeProjectId}/charts/${chartId}`);
+  };
+
+  const handleNewAnalysis = () => {
+     if (!activeProjectId || !activeProject) return;
+     const newId = createChart(activeProjectId, {
+        chartType: 'bar',
+        xAxis: '',
+        yAxis: [],
+        selectedColumns: []
+     }, `Análisis ${activeProject.charts.length + 1}`, false);
+     
+     setLocation(`/projects/${activeProjectId}/charts/${newId}`);
+  };
+
+  if (!activeProject || !activeProject.sheetData) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+          <AlertCircle className="w-16 h-16 text-muted-foreground opacity-50" />
+          <h2 className="text-xl font-semibold">Selecciona un proyecto con datos</h2>
+          <Button asChild><Link href="/">Ir al Inicio</Link></Button>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

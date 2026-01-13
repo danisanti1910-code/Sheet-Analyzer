@@ -18,9 +18,10 @@ interface InsightsPanelProps {
   selectedColumns: string[];
   filteredValues: Record<string, string[]>;
   onFilterChange: (col: string, values: string[]) => void;
+  compact?: boolean;
 }
 
-export function InsightsPanel({ sheetData, sourceData, selectedColumns, filteredValues, onFilterChange }: InsightsPanelProps) {
+export function InsightsPanel({ sheetData, sourceData, selectedColumns, filteredValues, onFilterChange, compact = false }: InsightsPanelProps) {
   
   const generateNarrative = () => {
     const narratives: string[] = [];
@@ -59,8 +60,8 @@ export function InsightsPanel({ sheetData, sourceData, selectedColumns, filtered
   }
 
   return (
-    <div className="space-y-3 animate-in slide-in-from-right duration-500 w-full">
-      <div className="flex flex-col gap-3">
+    <div className={cn("animate-in slide-in-from-right duration-500 w-full", compact ? "space-y-2" : "space-y-3")}>
+      <div className={cn("flex flex-col", compact ? "gap-2" : "gap-3")}>
         {selectedColumns.map(col => {
           const profile = sheetData.columnProfiles[col];
           if (!profile) return null;
@@ -69,14 +70,14 @@ export function InsightsPanel({ sheetData, sourceData, selectedColumns, filtered
           const selectedFilters = filteredValues[col] || allPossibleValues;
 
           return (
-            <Card key={col} className="overflow-hidden border-l-4 border-l-primary shadow-sm hover:shadow-md transition-shadow w-full">
-              <CardHeader className="pb-2 bg-muted/10">
+            <Card key={col} className={cn("overflow-hidden border-l-4 border-l-primary shadow-sm hover:shadow-md transition-shadow w-full", compact && "border-l-2")}>
+              <CardHeader className={cn("bg-muted/10", compact ? "p-2 pb-1" : "pb-2")}>
                 <div className="flex justify-between items-start gap-2">
                   <div className="flex flex-col min-w-0">
-                    <CardTitle className="text-sm font-semibold truncate" title={col}>
+                    <CardTitle className={cn("font-semibold truncate", compact ? "text-xs" : "text-sm")} title={col}>
                       {col}
                     </CardTitle>
-                    <Badge variant="outline" className="text-[10px] uppercase tracking-wider w-fit mt-1">{profile.type}</Badge>
+                    <Badge variant="outline" className={cn("uppercase tracking-wider w-fit mt-1", compact ? "text-[9px]" : "text-[10px]")}>{profile.type}</Badge>
                   </div>
                   
                   {(profile.type === 'categorical' || profile.type === 'boolean' || profile.type === 'numeric' || profile.type === 'datetime') && (
@@ -198,7 +199,7 @@ export function InsightsPanel({ sheetData, sourceData, selectedColumns, filtered
                   )}
                 </div>
               </CardHeader>
-              <CardContent className="pt-4 text-xs space-y-2">
+              <CardContent className={cn("text-xs space-y-2", compact ? "p-2 pt-2" : "pt-4")}>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Faltantes:</span>
                   <span className={profile.missingCount > 0 ? "text-amber-600 font-medium" : "text-green-600"}>
@@ -212,7 +213,7 @@ export function InsightsPanel({ sheetData, sourceData, selectedColumns, filtered
 
                 {profile.type === 'numeric' && (
                   <>
-                    <div className="border-t pt-2 mt-2 space-y-1">
+                    <div className={cn("border-t space-y-1", compact ? "pt-1.5 mt-1.5" : "pt-2 mt-2")}>
                       {(() => {
                         const formatNum = (num: number | undefined) => {
                           if (num === undefined) return '-';
@@ -234,11 +235,11 @@ export function InsightsPanel({ sheetData, sourceData, selectedColumns, filtered
                 )}
 
                 {(profile.type === 'categorical' || profile.type === 'boolean') && profile.topCategories && (
-                   <div className="border-t pt-2 mt-2">
-                     <span className="text-[10px] text-muted-foreground mb-1 block">Frecuencia (top):</span>
+                   <div className={cn("border-t", compact ? "pt-1.5 mt-1.5" : "pt-2 mt-2")}>
+                     <span className={cn("text-muted-foreground mb-1 block", compact ? "text-[9px]" : "text-[10px]")}>Frecuencia (top):</span>
                      <ul className="space-y-1">
-                       {profile.topCategories.slice(0, 3).map((cat, i) => (
-                         <li key={i} className="flex justify-between text-[10px]">
+                       {profile.topCategories.slice(0, compact ? 2 : 3).map((cat, i) => (
+                         <li key={i} className={cn("flex justify-between", compact ? "text-[9px]" : "text-[10px]")}>
                            <span className="truncate max-w-[120px]">{cat.value}</span>
                            <span className="font-mono bg-muted px-1 rounded">{new Intl.NumberFormat('en-US').format(cat.count)}</span>
                          </li>
@@ -252,18 +253,20 @@ export function InsightsPanel({ sheetData, sourceData, selectedColumns, filtered
         })}
       </div>
 
-      <div className="flex justify-center pt-4">
-        <Button 
-            onClick={() => setNarrative(generateNarrative())}
-            className="gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-lg shadow-indigo-200 dark:shadow-none"
-            data-testid="button-generate-narrative"
-        >
-            <Wand2 className="w-4 h-4" />
-            Generar Resumen Narrativo
-        </Button>
-      </div>
+      {!compact && (
+        <div className="flex justify-center pt-4">
+          <Button 
+              onClick={() => setNarrative(generateNarrative())}
+              className="gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-lg shadow-indigo-200 dark:shadow-none"
+              data-testid="button-generate-narrative"
+          >
+              <Wand2 className="w-4 h-4" />
+              Generar Resumen Narrativo
+          </Button>
+        </div>
+      )}
 
-      {narrative && (
+      {narrative && !compact && (
         <Card className="bg-indigo-50 border-indigo-100 dark:bg-indigo-950/20 dark:border-indigo-900">
             <CardContent className="pt-6">
                 <p className="text-indigo-900 dark:text-indigo-100 leading-relaxed text-sm" data-testid="text-narrative">
