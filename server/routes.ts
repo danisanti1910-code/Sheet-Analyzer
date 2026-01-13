@@ -33,14 +33,19 @@ export async function registerRoutes(
 
   app.post("/api/projects", async (req, res) => {
     try {
+      console.log('[POST /api/projects] Request body:', JSON.stringify(req.body));
       const validated = insertProjectSchema.parse(req.body);
+      console.log('[POST /api/projects] Validated data:', JSON.stringify(validated));
       const project = await storage.createProject(validated);
+      console.log('[POST /api/projects] Created project:', project.id);
       res.status(201).json(project);
     } catch (error) {
+      console.error('[POST /api/projects] Error:', error);
       if (error instanceof z.ZodError) {
+        console.error('[POST /api/projects] Validation errors:', JSON.stringify(error.errors));
         return res.status(400).json({ error: error.errors });
       }
-      res.status(500).json({ error: "Failed to create project" });
+      res.status(500).json({ error: "Failed to create project", details: String(error) });
     }
   });
 

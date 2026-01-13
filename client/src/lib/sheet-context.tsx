@@ -146,26 +146,36 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
 
   const createProjectMutation = useMutation({
     mutationFn: async (name: string) => {
+      console.log('[createProject] Sending request with name:', name);
       const response = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, sheetData: null })
       });
+      console.log('[createProject] Response status:', response.status);
       if (!response.ok) {
-        const errorData = await response.text();
-        console.error('Create project failed:', response.status, errorData);
-        throw new Error(`Failed to create project: ${response.status}`);
+        let errorData: any;
+        try {
+          errorData = await response.json();
+        } catch {
+          errorData = await response.text();
+        }
+        console.error('[createProject] Error response:', response.status, errorData);
+        const errorMessage = errorData?.details || errorData?.error || 'Unknown error';
+        throw new Error(`${response.status}: ${errorMessage}`);
       }
-      return response.json();
+      const data = await response.json();
+      console.log('[createProject] Success, project ID:', data.id);
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
     },
-    onError: (error) => {
-      console.error('Create project mutation error:', error);
+    onError: (error: Error) => {
+      console.error('[createProject] Mutation error:', error.message);
       toast({
         title: "Error al crear proyecto",
-        description: "No se pudo crear el proyecto. Por favor intente de nuevo.",
+        description: error.message || "No se pudo crear el proyecto. Por favor intente de nuevo.",
         variant: "destructive"
       });
     }
