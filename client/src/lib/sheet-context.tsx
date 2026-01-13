@@ -76,20 +76,79 @@ interface SheetContextType {
 
 const SheetContext = createContext<SheetContextType | undefined>(undefined);
 
+// Helper to extract error details from API responses
+async function extractErrorDetails(response: Response): Promise<{ error: string; details?: string; code?: string }> {
+  try {
+    const data = await response.json();
+    return {
+      error: data.error || 'Error desconocido',
+      details: data.details,
+      code: data.code
+    };
+  } catch {
+    return { error: response.statusText || 'Error desconocido' };
+  }
+}
+
+// Format error message for user display
+function formatUserError(errorInfo: { error: string; details?: string; code?: string }): { title: string; description: string } {
+  if (errorInfo.code === 'DATABASE_ERROR') {
+    return {
+      title: 'Error de conexión a la base de datos',
+      description: errorInfo.details || 'No se puede conectar con el servidor. Por favor, verifica que la base de datos esté configurada correctamente.'
+    };
+  }
+  return {
+    title: 'Error',
+    description: errorInfo.error
+  };
+}
+
 export const SheetProvider = ({ children }: { children: ReactNode }) => {
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: projectsData = [], isLoading } = useQuery({
+  const { data: projectsData = [], isLoading, error: projectsError } = useQuery({
     queryKey: ['projects'],
     queryFn: async () => {
       const response = await fetch('/api/projects');
-      if (!response.ok) throw new Error('Failed to fetch projects');
+      if (!response.ok) {
+        const errorInfo = await extractErrorDetails(response);
+        const err = new Error(errorInfo.error) as any;
+        err.details = errorInfo.details;
+        err.code = errorInfo.code;
+        throw err;
+      }
       return response.json();
-    }
+    },
+    retry: (failureCount, error: any) => {
+      // Retry only for transient errors
+      if (error.code === 'DATABASE_ERROR' && error.details?.includes('DNS')) {
+        return failureCount < 3;
+      }
+      return false;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * Math.pow(2, attemptIndex), 10000)
   });
+
+  // Show error toast when projects fetch fails
+  useEffect(() => {
+    if (projectsError) {
+      const errorInfo = {
+        error: (projectsError as any).message,
+        details: (projectsError as any).details,
+        code: (projectsError as any).code
+      };
+      const userError = formatUserError(errorInfo);
+      toast({
+        title: userError.title,
+        description: userError.description,
+        variant: 'destructive'
+      });
+    }
+  }, [projectsError, toast]);
 
   const { data: chartsData = [] } = useQuery({
     queryKey: ['charts'],
@@ -110,8 +169,20 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
     queryKey: ['globalDashboard'],
     queryFn: async () => {
       const response = await fetch('/api/global-dashboard');
-      if (!response.ok) throw new Error('Failed to fetch global dashboard');
+      if (!response.ok) {
+        const errorInfo = await extractErrorDetails(response);
+        const err = new Error(errorInfo.error) as any;
+        err.details = errorInfo.details;
+        err.code = errorInfo.code;
+        throw err;
+      }
       return response.json();
+    },
+    retry: (failureCount, error: any) => {
+      if (error.code === 'DATABASE_ERROR') {
+        return failureCount < 2;
+      }
+      return false;
     }
   });
 
@@ -146,16 +217,39 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
 
   const createProjectMutation = useMutation({
     mutationFn: async (name: string) => {
+      console.log('[createProject] Sending request with name:', name);
       const response = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, sheetData: null })
       });
-      if (!response.ok) throw new Error('Failed to create project');
+      console.log('[createProject] Response status:', response.status);
+      if (!response.ok) {
+        const errorInfo = await extractErrorDetails(response);
+        console.log('[createProject] Error response:', response.status, errorInfo);
+        const err = new Error(errorInfo.error) as any;
+        err.details = errorInfo.details;
+        err.code = errorInfo.code;
+        throw err;
+      }
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+    },
+    onError: (error: any) => {
+      console.log('[createProject] Mutation error:', error.message);
+      const errorInfo = {
+        error: error.message,
+        details: error.details,
+        code: error.code
+      };
+      const userError = formatUserError(errorInfo);
+      toast({
+        title: userError.title,
+        description: userError.description,
+        variant: 'destructive'
+      });
     }
   });
 
