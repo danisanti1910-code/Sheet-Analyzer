@@ -5,7 +5,9 @@ import { InsightsPanel } from '@/components/insights-panel';
 import { SheetData } from '@/lib/sheet-utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Trash2, AlertCircle, Plus, Edit3, Settings2, LayoutDashboard, PanelRight, PanelRightClose } from 'lucide-react';
+import { Trash2, AlertCircle, Plus, Edit3, Settings2, LayoutDashboard, PanelRight, PanelRightClose, BarChart3, LineChart, PieChart, ScatterChart, AreaChart, Filter } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Link, useLocation } from 'wouter';
 import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { Input } from '@/components/ui/input';
@@ -20,6 +22,30 @@ const GRID_COLS = 12;
 const ROW_HEIGHT = 100;
 const MARGIN: [number, number] = [16, 16];
 const CONTAINER_PADDING: [number, number] = [24, 24];
+
+const CHART_TYPE_ICONS: Record<string, React.ReactNode> = {
+  bar: <BarChart3 className="h-3 w-3" />,
+  line: <LineChart className="h-3 w-3" />,
+  area: <AreaChart className="h-3 w-3" />,
+  pie: <PieChart className="h-3 w-3" />,
+  scatter: <ScatterChart className="h-3 w-3" />,
+};
+
+const CHART_TYPE_LABELS: Record<string, string> = {
+  bar: 'Barras',
+  line: 'Líneas',
+  area: 'Área',
+  pie: 'Pastel',
+  scatter: 'Dispersión',
+};
+
+const AGGREGATION_LABELS: Record<string, string> = {
+  sum: 'Suma',
+  avg: 'Promedio',
+  count: 'Conteo',
+  min: 'Mínimo',
+  max: 'Máximo',
+};
 
 function DashboardChartWrapper({ chart, data }: { chart: SavedChart, data: SheetData }) {
   // Apply filters if they exist
@@ -270,53 +296,110 @@ export default function Dashboards() {
                 compactType="vertical"
                 isBounded={true}
              >
-                {activeProject.charts.map((chart) => (
+                {activeProject.charts.map((chart) => {
+                  const chartType = chart.chartConfig.chartType;
+                  const xAxis = chart.chartConfig.xAxis;
+                  const yAxis = chart.chartConfig.yAxis;
+                  const aggregation = chart.chartConfig.aggregation || 'sum';
+                  const filterCount = chart.chartConfig.filteredValues 
+                    ? Object.values(chart.chartConfig.filteredValues).filter((v: any) => v && v.length > 0).length 
+                    : 0;
+                  
+                  return (
                   <div key={chart.id} className="bg-background shadow-md border rounded-lg overflow-hidden flex flex-col">
-                    <CardHeader className="flex flex-row items-center justify-between py-2 px-4 border-b bg-muted/20 shrink-0 drag-handle cursor-move">
-                      {editingId === chart.id ? (
-                        <div className="flex gap-1" onMouseDown={e => e.stopPropagation()}>
-                          <Input value={tempName} onChange={e => setTempName(e.target.value)} className="h-7 text-xs w-32" />
-                          <Button size="sm" className="h-7" onClick={() => handleUpdateName(chart.id)}>OK</Button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2 group/title">
-                          <CardTitle className="text-xs font-bold truncate uppercase tracking-tight select-none">{chart.name}</CardTitle>
-                          <Button variant="ghost" size="icon" className="h-5 w-5 opacity-0 group-hover:opacity-100" onClick={(e) => { 
-                              e.stopPropagation(); // prevent drag
-                              setEditingId(chart.id); 
-                              setTempName(chart.name); 
-                          }} onMouseDown={e => e.stopPropagation()}>
-                            <Edit3 className="h-3 w-3" />
+                    <CardHeader className="flex flex-col gap-1 py-2 px-4 border-b bg-muted/20 shrink-0 drag-handle cursor-move">
+                      <div className="flex items-center justify-between w-full">
+                        {editingId === chart.id ? (
+                          <div className="flex gap-1" onMouseDown={e => e.stopPropagation()}>
+                            <Input value={tempName} onChange={e => setTempName(e.target.value)} className="h-7 text-xs w-32" />
+                            <Button size="sm" className="h-7" onClick={() => handleUpdateName(chart.id)}>OK</Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 group/title">
+                            <CardTitle className="text-xs font-bold truncate uppercase tracking-tight select-none">{chart.name}</CardTitle>
+                            <Button variant="ghost" size="icon" className="h-5 w-5 opacity-0 group-hover:opacity-100" onClick={(e) => { 
+                                e.stopPropagation();
+                                setEditingId(chart.id); 
+                                setTempName(chart.name); 
+                            }} onMouseDown={e => e.stopPropagation()}>
+                              <Edit3 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1" onMouseDown={e => e.stopPropagation()}>
+                          <Button 
+                             variant="ghost" 
+                             size="icon" 
+                             className={`h-7 w-7 ${chart.includeInsights ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary'}`}
+                             onClick={() => updateChart(chart.id, { includeInsights: !chart.includeInsights })}
+                             title={chart.includeInsights ? "Ocultar Insights" : "Mostrar Insights"}
+                          >
+                            {chart.includeInsights ? <PanelRightClose className="w-4 h-4" /> : <PanelRight className="w-4 h-4" />}
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => addToGlobalDashboard(activeProjectId!, chart.id)} title="Añadir al Dashboard Global">
+                            <LayoutDashboard className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => handleNavigateToEdit(chart.id)}>
+                            <Settings2 className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => deleteChart(chart.id)}>
+                            <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
-                      )}
-                      <div className="flex items-center gap-1" onMouseDown={e => e.stopPropagation()}>
-                        <Button 
-                           variant="ghost" 
-                           size="icon" 
-                           className={`h-7 w-7 ${chart.includeInsights ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary'}`}
-                           onClick={() => updateChart(chart.id, { includeInsights: !chart.includeInsights })}
-                           title={chart.includeInsights ? "Ocultar Insights" : "Mostrar Insights"}
-                        >
-                          {chart.includeInsights ? <PanelRightClose className="w-4 h-4" /> : <PanelRight className="w-4 h-4" />}
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => addToGlobalDashboard(activeProjectId!, chart.id)} title="Añadir al Dashboard Global">
-                          <LayoutDashboard className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => handleNavigateToEdit(chart.id)}>
-                          <Settings2 className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => deleteChart(chart.id)}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
                       </div>
+                      <TooltipProvider>
+                        <div className="flex items-center gap-1.5 flex-wrap" onMouseDown={e => e.stopPropagation()}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="secondary" className="h-5 text-[10px] gap-1 px-1.5">
+                                {CHART_TYPE_ICONS[chartType] || <BarChart3 className="h-3 w-3" />}
+                                {CHART_TYPE_LABELS[chartType] || chartType}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom"><p>Tipo de gráfico</p></TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="outline" className="h-5 text-[10px] px-1.5 max-w-[100px] truncate">
+                                X: {xAxis || 'Sin asignar'}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom"><p>Eje X: {xAxis || 'Sin asignar'}</p></TooltipContent>
+                          </Tooltip>
+                          {yAxis && yAxis.length > 0 && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge variant="outline" className="h-5 text-[10px] px-1.5 max-w-[120px] truncate">
+                                  Y: {yAxis.join(', ')}
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom"><p>Eje(s) Y: {yAxis.join(', ')}</p></TooltipContent>
+                            </Tooltip>
+                          )}
+                          <Badge variant="outline" className="h-5 text-[10px] px-1.5 bg-primary/5">
+                            {AGGREGATION_LABELS[aggregation] || aggregation}
+                          </Badge>
+                          {filterCount > 0 && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge variant="secondary" className="h-5 text-[10px] gap-1 px-1.5 bg-amber-500/10 text-amber-700 dark:text-amber-400">
+                                  <Filter className="h-2.5 w-2.5" />
+                                  {filterCount}
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom"><p>{filterCount} filtro(s) activo(s)</p></TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
+                      </TooltipProvider>
                     </CardHeader>
                     <div className="flex-1 min-h-0 bg-white dark:bg-black/20 p-2 overflow-hidden pointer-events-none select-none">
                        {/* DashboardChartWrapper handles the content and filtering */}
                        <DashboardChartWrapper chart={chart} data={activeProject.sheetData!} />
                     </div>
                   </div>
-                ))}
+                );
+                })}
              </ResponsiveGridLayout>
           </div>
         )}
