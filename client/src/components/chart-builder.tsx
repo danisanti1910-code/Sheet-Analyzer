@@ -64,17 +64,32 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
   
   const chartRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [resizeKey, setResizeKey] = useState(0);
+  const [containerDimensions, setContainerDimensions] = useState<{ width: number; height: number } | null>(null);
 
   useEffect(() => {
     if (!hideControls || !containerRef.current) return;
-    
+
+    const updateDimensions = () => {
+      if (containerRef.current) {
+        const { width, height } = containerRef.current.getBoundingClientRect();
+        if (width > 0 && height > 0) {
+          setContainerDimensions({ width, height });
+        }
+      }
+    };
+
+    // Initial measurement after a brief delay to ensure layout is complete
+    const timeoutId = setTimeout(updateDimensions, 50);
+
     const resizeObserver = new ResizeObserver(() => {
-      setResizeKey(k => k + 1);
+      updateDimensions();
     });
-    
+
     resizeObserver.observe(containerRef.current);
-    return () => resizeObserver.disconnect();
+    return () => {
+      clearTimeout(timeoutId);
+      resizeObserver.disconnect();
+    };
   }, [hideControls]);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -257,8 +272,10 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
 
     const renderChartByType = () => {
       const pieKey = plotKeys[0];
-      // Use 99% to prevent potential scrollbar flicker in some browsers
-      const containerHeight = hideControls ? "99%" : 400;
+      // Use measured container height for dashboard mode, or fixed 400px for normal mode
+      const containerHeight = hideControls
+        ? (containerDimensions?.height ? containerDimensions.height - 10 : "99%")
+        : 400;
       
       switch (chartType) {
         case 'bar':
@@ -457,9 +474,13 @@ export function ChartBuilder({ data, selectedColumns, hideControls = false, init
 
   if (hideControls) {
     return (
-      <div ref={containerRef} className="w-full h-full relative" key={resizeKey}>
+      <div ref={containerRef} className="w-full h-full relative">
         <div className="absolute inset-0">
-          {renderChart()}
+          {containerDimensions ? renderChart() : (
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+              Cargando gráfica...
+            </div>
+          )}
         </div>
       </div>
     );
