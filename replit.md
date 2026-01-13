@@ -65,18 +65,6 @@ Preferred communication style: Simple, everyday language.
 - **Path aliases**: `@/*` for client, `@shared/*` for shared code
 - **Type sharing**: Schema and types shared between frontend and backend via `shared/` directory
 - **Server-side rendering support**: Vite dev server proxies to Express in development
-- **URL-based navigation**: Pages extract projectId from URL params using `useParams()` and set activeProjectId automatically
-
-### Recent Fixes (January 2026)
-- **Project creation**: Fixed async/await issue in `handleCreate` - `createProject` returns a Promise that must be awaited
-- **Dashboard charts**: Fixed blank charts by calculating pixel height from grid layout and passing directly to ChartBuilder:
-  - ChartBuilder accepts optional `containerHeight` prop for explicit pixel height
-  - DashboardChartWrapper calculates height: `(h * ROW_HEIGHT) + ((h-1) * MARGIN[1])` minus 60px for header/padding
-  - This bypasses CSS height inheritance chain issues with ResponsiveContainer
-  - Note: Height updates after 300ms debounce during resize (acceptable UX trade-off)
-- **New analysis navigation**: Fixed async/await in `handleNewAnalysis` to properly wait for chart creation before navigating
-- **Route-based state**: Pages now extract projectId from URL params and set activeProjectId, enabling direct URL navigation
-- **React hooks order**: All hooks must be called before any conditional returns to avoid "Rendered more hooks" errors
 
 ## External Dependencies
 

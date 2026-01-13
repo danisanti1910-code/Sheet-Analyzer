@@ -6,8 +6,8 @@ import { SheetData } from '@/lib/sheet-utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Trash2, AlertCircle, Plus, Edit3, Settings2, LayoutDashboard, PanelRight, PanelRightClose } from 'lucide-react';
-import { Link, useLocation, useParams } from 'wouter';
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { Link, useLocation } from 'wouter';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
@@ -21,7 +21,7 @@ const ROW_HEIGHT = 100;
 const MARGIN: [number, number] = [16, 16];
 const CONTAINER_PADDING: [number, number] = [24, 24];
 
-function DashboardChartWrapper({ chart, data, layoutHeight }: { chart: SavedChart, data: SheetData, layoutHeight: number }) {
+function DashboardChartWrapper({ chart, data }: { chart: SavedChart, data: SheetData }) {
   // Apply filters if they exist
   const filteredData = useMemo(() => {
     if (!chart.chartConfig.filteredValues) return data;
@@ -101,19 +101,15 @@ function DashboardChartWrapper({ chart, data, layoutHeight }: { chart: SavedChar
     return { ...data, rows, rowCount: rows.length, columnProfiles: profiles };
   }, [data, chart.chartConfig.filteredValues]);
 
-  // Calculate available height for chart (subtract header ~44px and padding ~16px)
-  const chartHeight = Math.max(layoutHeight - 60, 100);
-  
   return (
-    <div className="w-full flex flex-row gap-2 overflow-hidden pointer-events-auto" style={{ height: chartHeight }}>
-      <div className={`${chart.includeInsights ? 'w-2/3' : 'w-full'}`} style={{ height: chartHeight }}>
-           <ChartBuilder 
-              data={filteredData} 
-              selectedColumns={chart.chartConfig.selectedColumns}
-              hideControls
-              initialConfig={chart.chartConfig}
-              containerHeight={chartHeight}
-           />
+    <div className="w-full h-full flex flex-col md:flex-row gap-2 overflow-hidden pointer-events-auto">
+      <div className={`flex-1 min-h-0 min-w-0 ${chart.includeInsights ? 'md:w-2/3' : 'w-full'}`}>
+         <ChartBuilder 
+            data={filteredData} 
+            selectedColumns={chart.chartConfig.selectedColumns}
+            hideControls
+            initialConfig={chart.chartConfig}
+         />
       </div>
       {chart.includeInsights && (
         <div className="md:w-1/3 min-w-0 overflow-y-auto overflow-x-hidden bg-slate-50 dark:bg-slate-900/50 p-2 rounded border flex flex-col">
@@ -134,66 +130,14 @@ function DashboardChartWrapper({ chart, data, layoutHeight }: { chart: SavedChar
 }
 
 export default function Dashboards() {
-  const { activeProject, deleteChart, updateChart, activeProjectId, createChart, addToGlobalDashboard, setActiveProjectId, projects } = useSheet();
+  const { activeProject, deleteChart, updateChart, activeProjectId, createChart, addToGlobalDashboard } = useSheet();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [tempName, setTempName] = useState("");
   const [, setLocation] = useLocation();
   const [isDragging, setIsDragging] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
-  const params = useParams<{ projectId: string }>();
 
-  useEffect(() => {
-    if (params.projectId && params.projectId !== activeProjectId) {
-      setActiveProjectId(params.projectId);
-    }
-  }, [params.projectId, activeProjectId, setActiveProjectId]);
-
-  const project = activeProject || projects.find(p => p.id === params.projectId);
-
-  const layout = useMemo(() => {
-    if (!project) return [];
-    return project.charts?.map((chart, index) => ({
-      i: chart.id,
-      x: chart.dashboardLayout?.x ?? (index % 2) * 6,
-      y: chart.dashboardLayout?.y ?? Math.floor(index / 2) * 4,
-      w: chart.dashboardLayout?.w ?? 6,
-      h: chart.dashboardLayout?.h ?? 4,
-      minW: 2,
-      minH: 2,
-      maxW: GRID_COLS
-    })) || [];
-  }, [project?.charts]);
-
-  const handleLayoutChange = useCallback((currentLayout: readonly any[], layouts: any) => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!project) return;
-    
-    debounceRef.current = setTimeout(() => {
-      (currentLayout as any[]).forEach((l) => {
-        const chart = project.charts.find(c => c.id === l.i);
-        if (chart) {
-          const hasChanged = 
-            chart.dashboardLayout?.x !== l.x ||
-            chart.dashboardLayout?.y !== l.y ||
-            chart.dashboardLayout?.w !== l.w ||
-            chart.dashboardLayout?.h !== l.h;
-          
-          if (hasChanged) {
-             updateChart(l.i, {
-               dashboardLayout: { x: l.x, y: l.y, w: l.w, h: l.h }
-             });
-          }
-        }
-      });
-    }, 300);
-  }, [project?.charts, updateChart]);
-
-  const handleDragStart = useCallback(() => setIsDragging(true), []);
-  const handleDragStop = useCallback(() => setIsDragging(false), []);
-  const handleResizeStart = useCallback(() => setIsDragging(true), []);
-  const handleResizeStop = useCallback(() => setIsDragging(false), []);
-
-  if (!project || !project.sheetData) {
+  if (!activeProject || !activeProject.sheetData) {
     return (
       <Layout>
         <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
@@ -211,28 +155,70 @@ export default function Dashboards() {
   };
 
   const handleNavigateToEdit = (chartId: string) => {
-    setLocation(`/projects/${params.projectId || activeProjectId}/charts/${chartId}`);
+    setLocation(`/projects/${activeProjectId}/charts/${chartId}`);
   };
 
-  const handleNewAnalysis = async () => {
-     const pid = params.projectId || activeProjectId;
-     if (!pid || !project) return;
-     const newId = await createChart(pid, {
+  const handleNewAnalysis = () => {
+     if (!activeProjectId) return;
+     // Create a new chart with default values
+     const newId = createChart(activeProjectId, {
         chartType: 'bar',
         xAxis: '',
         yAxis: [],
         selectedColumns: []
-     }, `Análisis ${project.charts.length + 1}`, false);
+     }, `Análisis ${activeProject.charts.length + 1}`, false);
      
-     setLocation(`/projects/${pid}/charts/${newId}`);
+     // Navigate to the new chart
+     setLocation(`/projects/${activeProjectId}/charts/${newId}`);
   };
+
+  const layout = useMemo(() => {
+    return activeProject.charts?.map((chart, index) => ({
+      i: chart.id,
+      x: chart.dashboardLayout?.x ?? (index % 2) * 6,
+      y: chart.dashboardLayout?.y ?? Math.floor(index / 2) * 4,
+      w: chart.dashboardLayout?.w ?? 6,
+      h: chart.dashboardLayout?.h ?? 4,
+      minW: 2,
+      minH: 2,
+      maxW: GRID_COLS
+    })) || [];
+  }, [activeProject.charts]);
+
+  const handleLayoutChange = useCallback((currentLayout: readonly any[], layouts: any) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    
+    debounceRef.current = setTimeout(() => {
+      (currentLayout as any[]).forEach((l) => {
+        const chart = activeProject.charts.find(c => c.id === l.i);
+        if (chart) {
+          const hasChanged = 
+            chart.dashboardLayout?.x !== l.x ||
+            chart.dashboardLayout?.y !== l.y ||
+            chart.dashboardLayout?.w !== l.w ||
+            chart.dashboardLayout?.h !== l.h;
+          
+          if (hasChanged) {
+             updateChart(l.i, {
+               dashboardLayout: { x: l.x, y: l.y, w: l.w, h: l.h }
+             });
+          }
+        }
+      });
+    }, 300);
+  }, [activeProject.charts, updateChart]);
+
+  const handleDragStart = useCallback(() => setIsDragging(true), []);
+  const handleDragStop = useCallback(() => setIsDragging(false), []);
+  const handleResizeStart = useCallback(() => setIsDragging(true), []);
+  const handleResizeStop = useCallback(() => setIsDragging(false), []);
 
   return (
     <Layout>
       <div className="min-h-screen flex flex-col p-6 space-y-6 bg-slate-50/50 dark:bg-slate-950/20">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{project.name} - Dashboard</h1>
+            <h1 className="text-2xl font-bold tracking-tight">{activeProject.name} - Dashboard</h1>
             <p className="text-muted-foreground text-xs">Panel interactivo con tus gráficas guardadas.</p>
           </div>
           <div className="flex gap-2">
@@ -245,7 +231,7 @@ export default function Dashboards() {
           </div>
         </div>
 
-        {(!project.charts || project.charts.length === 0) ? (
+        {(!activeProject.charts || activeProject.charts.length === 0) ? (
           <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed rounded-xl p-12">
             <p>No hay gráficas guardadas en este proyecto.</p>
           </div>
@@ -284,8 +270,8 @@ export default function Dashboards() {
                 compactType="vertical"
                 isBounded={true}
              >
-                {project.charts.map((chart) => (
-                  <div key={chart.id} className="bg-background shadow-md border rounded-lg overflow-hidden flex flex-col h-full">
+                {activeProject.charts.map((chart) => (
+                  <div key={chart.id} className="bg-background shadow-md border rounded-lg overflow-hidden flex flex-col">
                     <CardHeader className="flex flex-row items-center justify-between py-2 px-4 border-b bg-muted/20 shrink-0 drag-handle cursor-move">
                       {editingId === chart.id ? (
                         <div className="flex gap-1" onMouseDown={e => e.stopPropagation()}>
@@ -314,7 +300,7 @@ export default function Dashboards() {
                         >
                           {chart.includeInsights ? <PanelRightClose className="w-4 h-4" /> : <PanelRight className="w-4 h-4" />}
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => addToGlobalDashboard(params.projectId || activeProjectId!, chart.id)} title="Añadir al Dashboard Global">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => addToGlobalDashboard(activeProjectId!, chart.id)} title="Añadir al Dashboard Global">
                           <LayoutDashboard className="w-4 h-4" />
                         </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => handleNavigateToEdit(chart.id)}>
@@ -326,11 +312,8 @@ export default function Dashboards() {
                       </div>
                     </CardHeader>
                     <div className="flex-1 min-h-0 bg-white dark:bg-black/20 p-2 overflow-hidden pointer-events-none select-none">
-                       <DashboardChartWrapper 
-                         chart={chart} 
-                         data={project.sheetData!} 
-                         layoutHeight={(chart.dashboardLayout?.h || 4) * ROW_HEIGHT + ((chart.dashboardLayout?.h || 4) - 1) * MARGIN[1]} 
-                       />
+                       {/* DashboardChartWrapper handles the content and filtering */}
+                       <DashboardChartWrapper chart={chart} data={activeProject.sheetData!} />
                     </div>
                   </div>
                 ))}
