@@ -1,12 +1,46 @@
 import { FileUpload } from "@/components/file-upload";
 import { Layout } from "@/components/layout";
-import { useAuth } from "@/hooks/use-auth";
+import { useSheet } from "@/lib/sheet-context";
 import generatedImage from '@assets/generated_images/abstract_data_visualization_waves_header_background.png';
-import { ArrowRight, Upload, BarChart3, LayoutDashboard, CheckCircle2 } from "lucide-react";
+import { Shield, Zap, Database, ArrowRight, Upload, BarChart3, LayoutDashboard, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Home() {
-  const { user, isLoading } = useAuth();
+  const { user, login } = useSheet();
+  const { toast } = useToast();
+
+  const handleRegister = (e: React.FormEvent) => {
+    e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+    login({
+      firstName: formData.get('firstName') as string,
+      lastName: formData.get('lastName') as string,
+      email: formData.get('email') as string,
+      useCase: formData.get('useCase') as string
+    });
+    toast({
+      title: "Cuenta creada",
+      description: "¡Bienvenido a Sheet Analyzer! Ahora puedes empezar.",
+    });
+  };
 
   const steps = [
     {
@@ -62,14 +96,49 @@ export default function Home() {
               </p>
               <div className="mt-10 flex items-center gap-x-6">
                 {!user ? (
-                  <Button 
-                    size="lg" 
-                    className="rounded-full h-12 px-8 text-base shadow-xl shadow-primary/20"
-                    onClick={() => window.location.href = '/api/login'}
-                    data-testid="button-login"
-                  >
-                    Empezar gratis <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button size="lg" className="rounded-full h-12 px-8 text-base shadow-xl shadow-primary/20">
+                        Empezar gratis <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                      <DialogHeader>
+                        <DialogTitle className="text-2xl font-bold">Crea tu cuenta gratis</DialogTitle>
+                      </DialogHeader>
+                      <form onSubmit={handleRegister} className="space-y-4 py-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="firstName">Nombre</Label>
+                            <Input id="firstName" name="firstName" placeholder="Nombre" required />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="lastName">Apellido</Label>
+                            <Input id="lastName" name="lastName" placeholder="Apellido" required />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="email">Correo electrónico</Label>
+                          <Input id="email" name="email" type="email" placeholder="tu@email.com" required />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="use-case">¿Para qué usarás el sistema?</Label>
+                          <Select name="useCase" required>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecciona una opción" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="business">Análisis de Negocios</SelectItem>
+                              <SelectItem value="education">Educación / Investigación</SelectItem>
+                              <SelectItem value="personal">Uso Personal</SelectItem>
+                              <SelectItem value="marketing">Marketing y Ventas</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button type="submit" className="w-full h-11 mt-4">Comenzar ahora</Button>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
                 ) : (
                   <Button size="lg" className="rounded-full h-12 px-8 text-base shadow-xl shadow-primary/20" onClick={() => document.getElementById('upload-section')?.scrollIntoView({ behavior: 'smooth' })}>
                     Empezar a analizar <ArrowRight className="ml-2 h-4 w-4" />

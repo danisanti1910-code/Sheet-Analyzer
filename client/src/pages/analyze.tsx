@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useSheet, SavedChart } from '@/lib/sheet-context';
-import { useAuth } from '@/hooks/use-auth';
 import { Layout } from '@/components/layout';
 import { ColumnSidebar } from '@/components/column-sidebar';
 import { ChartBuilder } from '@/components/chart-builder';
@@ -134,8 +133,7 @@ export function ChartBuilderWrapper({
 
 
 export default function Analyze({ params }: { params: { projectId: string, chartId?: string } }) {
-  const { activeProject, setActiveProjectId, updateProject, refreshProjectData } = useSheet();
-  const { user } = useAuth();
+  const { activeProject, setActiveProjectId, updateProject, refreshProjectData, user } = useSheet();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);

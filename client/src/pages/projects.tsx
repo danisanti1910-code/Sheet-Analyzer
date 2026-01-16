@@ -1,5 +1,4 @@
 import { useSheet } from '@/lib/sheet-context';
-import { useAuth } from '@/hooks/use-auth';
 import { Layout } from '@/components/layout';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,8 +19,7 @@ import { es } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Projects() {
-  const { projects, createProject, setActiveProjectId, deleteProject } = useSheet();
-  const { user } = useAuth();
+  const { projects, createProject, setActiveProjectId, deleteProject, user } = useSheet();
   const [, setLocation] = useLocation();
   const [newProjectName, setNewProjectName] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);

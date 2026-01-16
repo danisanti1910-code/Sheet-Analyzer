@@ -40,6 +40,13 @@ export interface Project {
   sourceUrl?: string;
 }
 
+export interface User {
+  firstName: string;
+  lastName: string;
+  email: string;
+  useCase: string;
+}
+
 interface SheetContextType {
   projects: Project[];
   activeProjectId: string | null;
@@ -58,6 +65,10 @@ interface SheetContextType {
   addToGlobalDashboard: (projectId: string, chartId: string) => Promise<void>;
   removeFromGlobalDashboard: (itemId: string) => Promise<void>;
   updateGlobalDashboardLayout: (items: GlobalDashboardItem[]) => Promise<void>;
+  
+  user: User | null;
+  login: (user: User) => void;
+  logout: () => void;
 
   activeProject: Project | null;
   isLoading: boolean;
@@ -67,6 +78,7 @@ const SheetContext = createContext<SheetContextType | undefined>(undefined);
 
 export const SheetProvider = ({ children }: { children: ReactNode }) => {
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -114,6 +126,23 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
   const activeProject = useMemo(() => 
     projects.find(p => p.id === activeProjectId) || null
   , [projects, activeProjectId]);
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem('sheet_analyzer_user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+  }, []);
+
+  const login = (userData: User) => {
+    setUser(userData);
+    localStorage.setItem('sheet_analyzer_user', JSON.stringify(userData));
+  };
+
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem('sheet_analyzer_user');
+  };
 
   const createProjectMutation = useMutation({
     mutationFn: async (name: string) => {
@@ -382,6 +411,9 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
       addToGlobalDashboard,
       removeFromGlobalDashboard,
       updateGlobalDashboardLayout,
+      user,
+      login,
+      logout,
       isLoading
     }}>
       {children}
