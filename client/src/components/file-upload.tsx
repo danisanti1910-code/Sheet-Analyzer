@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { useSheet } from '@/lib/sheet-context';
+import { useAuth } from '@/hooks/use-auth';
 import { parseSheet } from '@/lib/sheet-utils';
 import { useLocation } from 'wouter';
 import { Upload, FileType, CheckCircle2, Loader2, Link as LinkIcon, UserPlus } from 'lucide-react';
@@ -16,10 +17,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function FileUpload() {
-  const { activeProject, updateProject, activeProjectId, setActiveProjectId, createProject, user, login } = useSheet();
+  const { activeProject, updateProject, activeProjectId, setActiveProjectId, createProject } = useSheet();
+  const { user } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [isDragging, setIsDragging] = useState(false);
@@ -87,19 +88,8 @@ export function FileUpload() {
     executeAction({ type: 'url', data: importUrl });
   };
 
-  const handleAuthSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const formData = new FormData(e.target as HTMLFormElement);
-    login({
-      firstName: formData.get('firstName') as string,
-      lastName: formData.get('lastName') as string,
-      email: formData.get('email') as string,
-      useCase: formData.get('useCase') as string
-    });
-    setIsAuthDialogOpen(false);
-    if (pendingAction) {
-      executeAction(pendingAction);
-    }
+  const handleAuthSubmit = () => {
+    window.location.href = '/api/login';
   };
 
   return (
@@ -140,41 +130,11 @@ export function FileUpload() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
                <UserPlus className="h-5 w-5 text-primary" />
-               Crea una cuenta para continuar
+               Inicia sesión para continuar
             </DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">Para analizar y guardar tus proyectos, necesitas una cuenta gratuita.</p>
-          <form onSubmit={handleAuthSubmit} className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="auth-firstName">Nombre</Label>
-                <Input id="auth-firstName" name="firstName" placeholder="Nombre" required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="auth-lastName">Apellido</Label>
-                <Input id="auth-lastName" name="lastName" placeholder="Apellido" required />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="auth-email">Correo electrónico</Label>
-              <Input id="auth-email" name="email" type="email" placeholder="tu@email.com" required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="auth-use-case">¿Para qué usarás el sistema?</Label>
-              <Select name="useCase" required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona una opción" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="business">Análisis de Negocios</SelectItem>
-                  <SelectItem value="education">Educación / Investigación</SelectItem>
-                  <SelectItem value="personal">Uso Personal</SelectItem>
-                  <SelectItem value="marketing">Marketing y Ventas</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button type="submit" className="w-full h-11 mt-4">Registrarme y analizar</Button>
-          </form>
+          <p className="text-sm text-muted-foreground">Para analizar y guardar tus proyectos, necesitas iniciar sesión.</p>
+          <Button onClick={handleAuthSubmit} className="w-full h-11 mt-4">Iniciar sesión</Button>
         </DialogContent>
       </Dialog>
     </div>
