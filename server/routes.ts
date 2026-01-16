@@ -3,26 +3,29 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertProjectSchema, insertChartSchema, insertGlobalDashboardItemSchema } from "@shared/schema";
 import { z } from "zod";
+import { isAuthenticated } from "./replit_integrations/auth";
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
   
-  // Projects
-  app.get("/api/projects", async (req, res) => {
+  // Projects - protected routes
+  app.get("/api/projects", isAuthenticated, async (req: any, res) => {
     try {
-      const projects = await storage.getAllProjects();
+      const userId = req.user?.claims?.sub;
+      const projects = await storage.getProjectsByUser(userId);
       res.json(projects);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch projects" });
     }
   });
 
-  app.get("/api/projects/:id", async (req, res) => {
+  app.get("/api/projects/:id", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user?.claims?.sub;
       const project = await storage.getProject(req.params.id);
-      if (!project) {
+      if (!project || project.userId !== userId) {
         return res.status(404).json({ error: "Project not found" });
       }
       res.json(project);
@@ -31,10 +34,12 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/projects", async (req, res) => {
+  app.post("/api/projects", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user?.claims?.sub;
+      console.log('[POST /api/projects] User:', userId);
       console.log('[POST /api/projects] Request body:', JSON.stringify(req.body));
-      const validated = insertProjectSchema.parse(req.body);
+      const validated = insertProjectSchema.parse({ ...req.body, userId });
       console.log('[POST /api/projects] Validated data:', JSON.stringify(validated));
       const project = await storage.createProject(validated);
       console.log('[POST /api/projects] Created project:', project.id);
@@ -49,13 +54,15 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/projects/:id", async (req, res) => {
+  app.patch("/api/projects/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const validated = insertProjectSchema.partial().parse(req.body);
-      const project = await storage.updateProject(req.params.id, validated);
-      if (!project) {
+      const userId = req.user?.claims?.sub;
+      const existingProject = await storage.getProject(req.params.id);
+      if (!existingProject || existingProject.userId !== userId) {
         return res.status(404).json({ error: "Project not found" });
       }
+      const validated = insertProjectSchema.partial().parse(req.body);
+      const project = await storage.updateProject(req.params.id, validated);
       res.json(project);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -65,8 +72,13 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/projects/:id", async (req, res) => {
+  app.delete("/api/projects/:id", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user?.claims?.sub;
+      const existingProject = await storage.getProject(req.params.id);
+      if (!existingProject || existingProject.userId !== userId) {
+        return res.status(404).json({ error: "Project not found" });
+      }
       await storage.deleteProject(req.params.id);
       res.status(204).send();
     } catch (error) {
@@ -74,9 +86,14 @@ export async function registerRoutes(
     }
   });
 
-  // Charts
-  app.get("/api/projects/:projectId/charts", async (req, res) => {
+  // Charts - protected routes
+  app.get("/api/projects/:projectId/charts", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user?.claims?.sub;
+      const project = await storage.getProject(req.params.projectId);
+      if (!project || project.userId !== userId) {
+        return res.status(404).json({ error: "Project not found" });
+      }
       const charts = await storage.getChartsByProject(req.params.projectId);
       res.json(charts);
     } catch (error) {
@@ -84,7 +101,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/charts/:id", async (req, res) => {
+  app.get("/api/charts/:id", isAuthenticated, async (req: any, res) => {
     try {
       const chart = await storage.getChart(req.params.id);
       if (!chart) {
@@ -96,8 +113,13 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/charts", async (req, res) => {
+  app.post("/api/charts", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user?.claims?.sub;
+      const project = await storage.getProject(req.body.projectId);
+      if (!project || project.userId !== userId) {
+        return res.status(404).json({ error: "Project not found" });
+      }
       const validated = insertChartSchema.parse(req.body);
       const chart = await storage.createChart(validated);
       res.status(201).json(chart);
@@ -109,7 +131,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/charts/:id", async (req, res) => {
+  app.patch("/api/charts/:id", isAuthenticated, async (req: any, res) => {
     try {
       const validated = insertChartSchema.partial().parse(req.body);
       const chart = await storage.updateChart(req.params.id, validated);
@@ -125,7 +147,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/charts/:id", async (req, res) => {
+  app.delete("/api/charts/:id", isAuthenticated, async (req: any, res) => {
     try {
       await storage.deleteChart(req.params.id);
       res.status(204).send();
@@ -134,18 +156,24 @@ export async function registerRoutes(
     }
   });
 
-  // Global Dashboard Items
-  app.get("/api/global-dashboard", async (req, res) => {
+  // Global Dashboard Items - protected routes
+  app.get("/api/global-dashboard", isAuthenticated, async (req: any, res) => {
     try {
-      const items = await storage.getAllGlobalDashboardItems();
+      const userId = req.user?.claims?.sub;
+      const items = await storage.getGlobalDashboardItemsByUser(userId);
       res.json(items);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch global dashboard items" });
     }
   });
 
-  app.post("/api/global-dashboard", async (req, res) => {
+  app.post("/api/global-dashboard", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user?.claims?.sub;
+      const project = await storage.getProject(req.body.projectId);
+      if (!project || project.userId !== userId) {
+        return res.status(404).json({ error: "Project not found" });
+      }
       const validated = insertGlobalDashboardItemSchema.parse(req.body);
       const item = await storage.createGlobalDashboardItem(validated);
       res.status(201).json(item);
@@ -157,7 +185,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/global-dashboard/:id", async (req, res) => {
+  app.patch("/api/global-dashboard/:id", isAuthenticated, async (req: any, res) => {
     try {
       const { layout } = req.body;
       await storage.updateGlobalDashboardItem(req.params.id, layout);
@@ -167,7 +195,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/global-dashboard/:id", async (req, res) => {
+  app.delete("/api/global-dashboard/:id", isAuthenticated, async (req: any, res) => {
     try {
       await storage.deleteGlobalDashboardItem(req.params.id);
       res.status(204).send();

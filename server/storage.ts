@@ -15,6 +15,7 @@ import { eq, desc } from "drizzle-orm";
 export interface IStorage {
   // Projects
   getAllProjects(): Promise<Project[]>;
+  getProjectsByUser(userId: string): Promise<Project[]>;
   getProject(id: string): Promise<Project | undefined>;
   createProject(project: InsertProject): Promise<Project>;
   updateProject(id: string, updates: Partial<InsertProject>): Promise<Project | undefined>;
@@ -29,6 +30,7 @@ export interface IStorage {
   
   // Global Dashboard
   getAllGlobalDashboardItems(): Promise<GlobalDashboardItem[]>;
+  getGlobalDashboardItemsByUser(userId: string): Promise<GlobalDashboardItem[]>;
   createGlobalDashboardItem(item: InsertGlobalDashboardItem): Promise<GlobalDashboardItem>;
   deleteGlobalDashboardItem(id: string): Promise<void>;
   updateGlobalDashboardItem(id: string, layout: any): Promise<void>;
@@ -38,6 +40,10 @@ export class DatabaseStorage implements IStorage {
   // Projects
   async getAllProjects(): Promise<Project[]> {
     return await db.select().from(projects).orderBy(desc(projects.updatedAt));
+  }
+
+  async getProjectsByUser(userId: string): Promise<Project[]> {
+    return await db.select().from(projects).where(eq(projects.userId, userId)).orderBy(desc(projects.updatedAt));
   }
 
   async getProject(id: string): Promise<Project | undefined> {
@@ -94,6 +100,21 @@ export class DatabaseStorage implements IStorage {
   // Global Dashboard
   async getAllGlobalDashboardItems(): Promise<GlobalDashboardItem[]> {
     return await db.select().from(globalDashboardItems).orderBy(desc(globalDashboardItems.createdAt));
+  }
+
+  async getGlobalDashboardItemsByUser(userId: string): Promise<GlobalDashboardItem[]> {
+    return await db
+      .select({ 
+        id: globalDashboardItems.id,
+        projectId: globalDashboardItems.projectId,
+        chartId: globalDashboardItems.chartId,
+        layout: globalDashboardItems.layout,
+        createdAt: globalDashboardItems.createdAt
+      })
+      .from(globalDashboardItems)
+      .innerJoin(projects, eq(globalDashboardItems.projectId, projects.id))
+      .where(eq(projects.userId, userId))
+      .orderBy(desc(globalDashboardItems.createdAt));
   }
 
   async createGlobalDashboardItem(item: InsertGlobalDashboardItem): Promise<GlobalDashboardItem> {
