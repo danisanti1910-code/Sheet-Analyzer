@@ -2,8 +2,9 @@
   "version": 2,
   "buildCommand": "npm run build",
   "installCommand": "npm install",
+  "outputDirectory": "dist/public",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/api" }
+    { "source": "/api/:path*", "destination": "/api" }
   ],
   "env": {
     "NODE_ENV": "production"
