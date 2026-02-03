@@ -150,21 +150,25 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
       const response = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, sheetData: null })
+        body: JSON.stringify({ name, sheetData: null }),
+        credentials: 'include',
       });
       console.log('[createProject] Response status:', response.status);
+      const bodyText = await response.text();
       if (!response.ok) {
         let errorData: any;
         try {
-          errorData = await response.json();
+          errorData = JSON.parse(bodyText);
         } catch {
-          errorData = await response.text();
+          errorData = bodyText;
         }
         console.error('[createProject] Error response:', response.status, errorData);
-        const errorMessage = errorData?.details || errorData?.error || 'Unknown error';
+        const errorMessage = typeof errorData === 'object'
+          ? (errorData?.details || errorData?.error || 'Unknown error')
+          : String(errorData || 'Unknown error');
         throw new Error(`${response.status}: ${errorMessage}`);
       }
-      const data = await response.json();
+      const data = JSON.parse(bodyText);
       console.log('[createProject] Success, project ID:', data.id);
       return data;
     },

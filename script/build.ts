@@ -56,6 +56,22 @@ async function buildAll() {
     external: externals,
     logLevel: "info",
   });
+
+  // Bundle api handler for Vercel: includes server/app and all deps so /var/task/server/app is not needed
+  console.log("building api (Vercel)...");
+  await esbuild({
+    entryPoints: ["api/index.ts"],
+    platform: "node",
+    bundle: true,
+    format: "cjs",
+    outfile: "api/index.js",
+    define: {
+      "process.env.NODE_ENV": '"production"',
+    },
+    minify: true,
+    external: externals,
+    logLevel: "info",
+  });
 }
 
 buildAll().catch((err) => {
