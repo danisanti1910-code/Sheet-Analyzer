@@ -1,14 +1,19 @@
-import { drizzle } from "drizzle-orm/node-postgres";
-import pg from "pg";
+import mongoose from "mongoose";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL must be set. Did you forget to provision a database?");
+function getMongoUri(): string {
+  const uri = process.env.MONGODB_URI || process.env.DATABASE_URL;
+  if (!uri) {
+    throw new Error(
+      "MONGODB_URI or DATABASE_URL must be set. Use your MongoDB Atlas connection string."
+    );
+  }
+  return uri;
 }
 
-export const client = new pg.Pool({
-  connectionString: process.env.DATABASE_URL
-});
+export async function connectDb(): Promise<typeof mongoose> {
+  return mongoose.connect(getMongoUri());
+}
 
-export const db = drizzle(client);
-
-
+export function isConnected(): boolean {
+  return mongoose.connection.readyState === 1;
+}

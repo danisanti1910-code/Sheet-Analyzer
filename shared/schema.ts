@@ -1,58 +1,53 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, jsonb, boolean } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const projects = pgTable("projects", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  sourceUrl: text("source_url"),
-  sheetData: jsonb("sheet_data"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+// Zod schemas for API validation (MongoDB-compatible)
+const projectBaseSchema = z.object({
+  name: z.string().min(1),
+  sourceUrl: z.string().optional().nullable(),
+  sheetData: z.unknown().optional().nullable(),
 });
 
-export const charts = pgTable("charts", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  name: text("name").notNull(),
-  includeInsights: boolean("include_insights").default(false),
-  chartConfig: jsonb("chart_config").notNull(),
-  dashboardLayout: jsonb("dashboard_layout"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+const chartBaseSchema = z.object({
+  projectId: z.string().min(1),
+  name: z.string().min(1),
+  includeInsights: z.boolean().optional().default(false),
+  chartConfig: z.record(z.unknown()),
+  dashboardLayout: z.unknown().optional().nullable(),
 });
 
-export const globalDashboardItems = pgTable("global_dashboard_items", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  chartId: varchar("chart_id").notNull().references(() => charts.id, { onDelete: 'cascade' }),
-  layout: jsonb("layout").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+const globalDashboardItemBaseSchema = z.object({
+  projectId: z.string().min(1),
+  chartId: z.string().min(1),
+  layout: z.record(z.unknown()),
 });
 
-export const insertProjectSchema = createInsertSchema(projects).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
+export const insertProjectSchema = projectBaseSchema;
+export const insertChartSchema = chartBaseSchema;
+export const insertGlobalDashboardItemSchema = globalDashboardItemBaseSchema;
+
+// Document types (with id and timestamps)
+export const projectSchema = projectBaseSchema.extend({
+  id: z.string(),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
 });
 
-export const insertChartSchema = createInsertSchema(charts).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
+export const chartSchema = chartBaseSchema.extend({
+  id: z.string(),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
 });
 
-export const insertGlobalDashboardItemSchema = createInsertSchema(globalDashboardItems).omit({
-  id: true,
-  createdAt: true,
+export const globalDashboardItemSchema = globalDashboardItemBaseSchema.extend({
+  id: z.string(),
+  createdAt: z.coerce.date(),
 });
 
 export type InsertProject = z.infer<typeof insertProjectSchema>;
-export type Project = typeof projects.$inferSelect;
+export type Project = z.infer<typeof projectSchema>;
 
 export type InsertChart = z.infer<typeof insertChartSchema>;
-export type Chart = typeof charts.$inferSelect;
+export type Chart = z.infer<typeof chartSchema>;
 
 export type InsertGlobalDashboardItem = z.infer<typeof insertGlobalDashboardItemSchema>;
-export type GlobalDashboardItem = typeof globalDashboardItems.$inferSelect;
+export type GlobalDashboardItem = z.infer<typeof globalDashboardItemSchema>;

@@ -1,116 +1,135 @@
-import { 
-  type Project, 
-  type InsertProject,
-  type Chart,
-  type InsertChart,
-  type GlobalDashboardItem,
-  type InsertGlobalDashboardItem,
-  projects,
-  charts,
-  globalDashboardItems
+import type {
+  Project,
+  InsertProject,
+  Chart,
+  InsertChart,
+  GlobalDashboardItem,
+  InsertGlobalDashboardItem,
 } from "@shared/schema";
-import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import {
+  ProjectModel,
+  ChartModel,
+  GlobalDashboardItemModel,
+} from "./models";
+import type { Document } from "mongoose";
 
 export interface IStorage {
-  // Projects
   getAllProjects(): Promise<Project[]>;
   getProject(id: string): Promise<Project | undefined>;
   createProject(project: InsertProject): Promise<Project>;
   updateProject(id: string, updates: Partial<InsertProject>): Promise<Project | undefined>;
   deleteProject(id: string): Promise<void>;
-  
-  // Charts
+
   getChartsByProject(projectId: string): Promise<Chart[]>;
   getChart(id: string): Promise<Chart | undefined>;
   createChart(chart: InsertChart): Promise<Chart>;
   updateChart(id: string, updates: Partial<InsertChart>): Promise<Chart | undefined>;
   deleteChart(id: string): Promise<void>;
-  
-  // Global Dashboard
+
   getAllGlobalDashboardItems(): Promise<GlobalDashboardItem[]>;
   createGlobalDashboardItem(item: InsertGlobalDashboardItem): Promise<GlobalDashboardItem>;
   deleteGlobalDashboardItem(id: string): Promise<void>;
-  updateGlobalDashboardItem(id: string, layout: any): Promise<void>;
+  updateGlobalDashboardItem(id: string, layout: Record<string, unknown>): Promise<void>;
+}
+
+function toPlain<T>(doc: Document | null): T | undefined {
+  if (!doc) return undefined;
+  return doc.toJSON() as T;
+}
+
+function toPlainRequired<T>(doc: Document): T {
+  return doc.toJSON() as T;
 }
 
 export class DatabaseStorage implements IStorage {
-  // Projects
   async getAllProjects(): Promise<Project[]> {
-    return await db.select().from(projects).orderBy(desc(projects.updatedAt));
+    const docs = await ProjectModel.find().sort({ updatedAt: -1 }).exec();
+    return docs.map((d) => d.toJSON() as Project);
   }
 
   async getProject(id: string): Promise<Project | undefined> {
-    const [project] = await db.select().from(projects).where(eq(projects.id, id));
-    return project;
+    if (!id || !isValidObjectId(id)) return undefined;
+    const doc = await ProjectModel.findById(id).exec();
+    return toPlain<Project>(doc);
   }
 
   async createProject(project: InsertProject): Promise<Project> {
-    const [newProject] = await db.insert(projects).values(project).returning();
-    return newProject;
+    const doc = await ProjectModel.create(project);
+    return toPlainRequired<Project>(doc);
   }
 
   async updateProject(id: string, updates: Partial<InsertProject>): Promise<Project | undefined> {
-    const [updated] = await db
-      .update(projects)
-      .set({ ...updates, updatedAt: new Date() })
-      .where(eq(projects.id, id))
-      .returning();
-    return updated;
+    if (!id || !isValidObjectId(id)) return undefined;
+    const doc = await ProjectModel.findByIdAndUpdate(
+      id,
+      { $set: updates },
+      { new: true }
+    ).exec();
+    return toPlain<Project>(doc);
   }
 
   async deleteProject(id: string): Promise<void> {
-    await db.delete(projects).where(eq(projects.id, id));
+    if (!id || !isValidObjectId(id)) return;
+    await ProjectModel.findByIdAndDelete(id).exec();
+    await ChartModel.deleteMany({ projectId: id }).exec();
+    await GlobalDashboardItemModel.deleteMany({ projectId: id }).exec();
   }
 
-  // Charts
   async getChartsByProject(projectId: string): Promise<Chart[]> {
-    return await db.select().from(charts).where(eq(charts.projectId, projectId)).orderBy(desc(charts.createdAt));
+    const docs = await ChartModel.find({ projectId }).sort({ createdAt: -1 }).exec();
+    return docs.map((d) => d.toJSON() as Chart);
   }
 
   async getChart(id: string): Promise<Chart | undefined> {
-    const [chart] = await db.select().from(charts).where(eq(charts.id, id));
-    return chart;
+    if (!id || !isValidObjectId(id)) return undefined;
+    const doc = await ChartModel.findById(id).exec();
+    return toPlain<Chart>(doc);
   }
 
   async createChart(chart: InsertChart): Promise<Chart> {
-    const [newChart] = await db.insert(charts).values(chart).returning();
-    return newChart;
+    const doc = await ChartModel.create(chart);
+    return toPlainRequired<Chart>(doc);
   }
 
   async updateChart(id: string, updates: Partial<InsertChart>): Promise<Chart | undefined> {
-    const [updated] = await db
-      .update(charts)
-      .set({ ...updates, updatedAt: new Date() })
-      .where(eq(charts.id, id))
-      .returning();
-    return updated;
+    if (!id || !isValidObjectId(id)) return undefined;
+    const doc = await ChartModel.findByIdAndUpdate(
+      id,
+      { $set: updates },
+      { new: true }
+    ).exec();
+    return toPlain<Chart>(doc);
   }
 
   async deleteChart(id: string): Promise<void> {
-    await db.delete(charts).where(eq(charts.id, id));
+    if (!id || !isValidObjectId(id)) return;
+    await ChartModel.findByIdAndDelete(id).exec();
+    await GlobalDashboardItemModel.deleteMany({ chartId: id }).exec();
   }
 
-  // Global Dashboard
   async getAllGlobalDashboardItems(): Promise<GlobalDashboardItem[]> {
-    return await db.select().from(globalDashboardItems).orderBy(desc(globalDashboardItems.createdAt));
+    const docs = await GlobalDashboardItemModel.find().sort({ createdAt: -1 }).exec();
+    return docs.map((d) => d.toJSON() as GlobalDashboardItem);
   }
 
   async createGlobalDashboardItem(item: InsertGlobalDashboardItem): Promise<GlobalDashboardItem> {
-    const [newItem] = await db.insert(globalDashboardItems).values(item).returning();
-    return newItem;
+    const doc = await GlobalDashboardItemModel.create(item);
+    return toPlainRequired<GlobalDashboardItem>(doc);
   }
 
   async deleteGlobalDashboardItem(id: string): Promise<void> {
-    await db.delete(globalDashboardItems).where(eq(globalDashboardItems.id, id));
+    if (!id || !isValidObjectId(id)) return;
+    await GlobalDashboardItemModel.findByIdAndDelete(id).exec();
   }
 
-  async updateGlobalDashboardItem(id: string, layout: any): Promise<void> {
-    await db
-      .update(globalDashboardItems)
-      .set({ layout })
-      .where(eq(globalDashboardItems.id, id));
+  async updateGlobalDashboardItem(id: string, layout: Record<string, unknown>): Promise<void> {
+    if (!id || !isValidObjectId(id)) return;
+    await GlobalDashboardItemModel.findByIdAndUpdate(id, { $set: { layout } }).exec();
   }
+}
+
+function isValidObjectId(id: string): boolean {
+  return /^[0-9a-fA-F]{24}$/.test(id);
 }
 
 export const storage = new DatabaseStorage();
