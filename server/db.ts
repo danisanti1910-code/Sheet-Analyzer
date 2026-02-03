@@ -10,3 +10,5 @@ export const client = new pg.Pool({
 });
 
 export const db = drizzle(client);
+
+
