@@ -44,9 +44,9 @@ export async function createApp(): Promise<Express> {
       let capturedJsonResponse: Record<string, unknown> | undefined;
 
       const originalResJson = res.json.bind(res);
-      res.json = function (bodyJson: unknown, ...args: unknown[]) {
+      res.json = function (bodyJson: unknown) {
         capturedJsonResponse = bodyJson as Record<string, unknown>;
-        return originalResJson(bodyJson, ...args);
+        return originalResJson(bodyJson);
       };
 
       res.on("finish", () => {
