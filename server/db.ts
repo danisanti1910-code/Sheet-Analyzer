@@ -11,7 +11,16 @@ function getMongoUri(): string {
 }
 
 export async function connectDb(): Promise<typeof mongoose> {
-  return mongoose.connect(getMongoUri());
+  // Reutilizar conexión existente (importante en serverless)
+  if (mongoose.connection.readyState === 1) {
+    return mongoose;
+  }
+  const uri = getMongoUri();
+  return mongoose.connect(uri, {
+    bufferCommands: false,
+    serverSelectionTimeoutMS: 10000,
+    maxPoolSize: 10,
+  });
 }
 
 export function isConnected(): boolean {

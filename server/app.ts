@@ -29,14 +29,24 @@ export async function createApp(): Promise<Express> {
     const app = express();
     const httpServer = createServer(app);
 
-    app.use(
-      express.json({
-        verify: (req, _res, buf) => {
-          req.rawBody = buf;
-        },
-      })
-    );
-    app.use(express.urlencoded({ extended: false }));
+    // En Vercel el body ya viene parseado en req.body; express.json() leería el stream vacío y pisaría req.body
+    if (!process.env.VERCEL) {
+      app.use(
+        express.json({
+          verify: (req, _res, buf) => {
+            req.rawBody = buf;
+          },
+        })
+      );
+      app.use(express.urlencoded({ extended: false }));
+    } else {
+      app.use((req, _res, next) => {
+        if (req.body == null && req.method !== "GET" && req.method !== "HEAD") {
+          (req as express.Request).body = {};
+        }
+        next();
+      });
+    }
 
     app.use((req, res, next) => {
       const start = Date.now();
