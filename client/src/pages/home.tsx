@@ -27,19 +27,27 @@ export default function Home() {
   const { user, login } = useSheet();
   const { toast } = useToast();
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
-    login({
-      firstName: formData.get('firstName') as string,
-      lastName: formData.get('lastName') as string,
-      email: formData.get('email') as string,
-      useCase: formData.get('useCase') as string
-    });
-    toast({
-      title: "Cuenta creada",
-      description: "¡Bienvenido a Sheet Analyzer! Ahora puedes empezar.",
-    });
+    try {
+      await login({
+        firstName: formData.get('firstName') as string,
+        lastName: formData.get('lastName') as string,
+        email: formData.get('email') as string,
+        useCase: formData.get('useCase') as string
+      });
+      toast({
+        title: "Cuenta creada",
+        description: "¡Bienvenido a Sheet Analyzer! Ahora puedes empezar.",
+      });
+    } catch (err) {
+      toast({
+        title: "Error al registrar",
+        description: err instanceof Error ? err.message : "Intenta de nuevo.",
+        variant: "destructive",
+      });
+    }
   };
 
   const steps = [

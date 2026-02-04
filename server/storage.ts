@@ -5,16 +5,37 @@ import type {
   InsertChart,
   GlobalDashboardItem,
   InsertGlobalDashboardItem,
+  User,
+  InsertUser,
 } from "@shared/schema";
 import {
+  UserModel,
   ProjectModel,
   ChartModel,
   GlobalDashboardItemModel,
 } from "./models";
 import type { Document } from "mongoose";
 
+export interface AdminUserStats {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  lastActiveAt: Date;
+  projectCount: number;
+  chartCount: number;
+  chartTypes: string[];
+  projectsWithUrl: number;
+  projectsWithUpload: number;
+}
+
 export interface IStorage {
-  getAllProjects(): Promise<Project[]>;
+  createOrUpdateUser(data: InsertUser): Promise<User>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  getAllUsers(): Promise<User[]>;
+  getAdminUserStats(): Promise<AdminUserStats[]>;
+
+  getAllProjects(userId?: string | null): Promise<Project[]>;
   getProject(id: string): Promise<Project | undefined>;
   createProject(project: InsertProject): Promise<Project>;
   updateProject(id: string, updates: Partial<InsertProject>): Promise<Project | undefined>;
@@ -42,8 +63,71 @@ function toPlainRequired<T>(doc: Document): T {
 }
 
 export class DatabaseStorage implements IStorage {
-  async getAllProjects(): Promise<Project[]> {
-    const docs = await ProjectModel.find().sort({ updatedAt: -1 }).exec();
+  async createOrUpdateUser(data: InsertUser): Promise<User> {
+    const doc = await UserModel.findOneAndUpdate(
+      { email: data.email },
+      {
+        $set: {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          useCase: data.useCase ?? "",
+          lastActiveAt: new Date(),
+        },
+      },
+      { new: true, upsert: true }
+    ).exec();
+    const plain = doc.toJSON() as Record<string, unknown>;
+    return { ...plain, isSuperAdmin: undefined } as User;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const doc = await UserModel.findOne({ email }).exec();
+    return toPlain<User>(doc);
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    const docs = await UserModel.find().sort({ lastActiveAt: -1 }).exec();
+    return docs.map((d) => d.toJSON() as User);
+  }
+
+  async getAdminUserStats(): Promise<AdminUserStats[]> {
+    const users = await UserModel.find().sort({ lastActiveAt: -1 }).exec();
+    const stats: AdminUserStats[] = [];
+    for (const u of users) {
+      const userId = u._id.toString();
+      const projects = await ProjectModel.find({ userId }).exec();
+      const projectIds = projects.map((p) => p._id.toString());
+      const charts = await ChartModel.find({ projectId: { $in: projectIds } }).exec();
+      const chartTypes = new Set<string>();
+      charts.forEach((c) => {
+        const t = (c.chartConfig as Record<string, unknown>)?.chartType;
+        if (typeof t === "string") chartTypes.add(t);
+      });
+      let projectsWithUrl = 0;
+      let projectsWithUpload = 0;
+      projects.forEach((p) => {
+        if (p.sourceUrl) projectsWithUrl++;
+        if (p.sheetData != null) projectsWithUpload++;
+      });
+      stats.push({
+        id: userId,
+        email: u.email,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        lastActiveAt: u.lastActiveAt,
+        projectCount: projects.length,
+        chartCount: charts.length,
+        chartTypes: Array.from(chartTypes),
+        projectsWithUrl,
+        projectsWithUpload,
+      });
+    }
+    return stats;
+  }
+
+  async getAllProjects(userId?: string | null): Promise<Project[]> {
+    const filter = userId != null && userId !== "" ? { userId } : {};
+    const docs = await ProjectModel.find(filter).sort({ updatedAt: -1 }).exec();
     return docs.map((d) => d.toJSON() as Project);
   }
 

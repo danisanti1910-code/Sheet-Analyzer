@@ -41,10 +41,12 @@ export interface Project {
 }
 
 export interface User {
+  id?: string;
   firstName: string;
   lastName: string;
   email: string;
-  useCase: string;
+  useCase?: string;
+  isSuperAdmin?: boolean;
 }
 
 interface SheetContextType {
@@ -67,7 +69,7 @@ interface SheetContextType {
   updateGlobalDashboardLayout: (items: GlobalDashboardItem[]) => Promise<void>;
   
   user: User | null;
-  login: (user: User) => void;
+  login: (userData: { firstName: string; lastName: string; email: string; useCase?: string }) => Promise<void>;
   logout: () => void;
 
   activeProject: Project | null;
@@ -83,12 +85,14 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
   const queryClient = useQueryClient();
 
   const { data: projectsData = [], isLoading } = useQuery({
-    queryKey: ['projects'],
+    queryKey: ['projects', user?.id ?? 'anonymous'],
     queryFn: async () => {
-      const response = await fetch('/api/projects');
+      const url = user?.id ? `/api/projects?userId=${encodeURIComponent(user.id)}` : '/api/projects';
+      const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch projects');
       return response.json();
-    }
+    },
+    enabled: true,
   });
 
   const { data: chartsData = [] } = useQuery({
@@ -129,14 +133,47 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const savedUser = localStorage.getItem('sheet_analyzer_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
+    if (!savedUser) return;
+    const parsed = JSON.parse(savedUser) as User & { email?: string; firstName?: string; lastName?: string; useCase?: string };
+    setUser(parsed);
+    // Si el usuario tiene email pero le falta id o isSuperAdmin, refrescar desde la API
+    if (parsed.email && (parsed.id === undefined || parsed.isSuperAdmin === undefined)) {
+      fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: parsed.email,
+          firstName: parsed.firstName ?? '',
+          lastName: parsed.lastName ?? '',
+          useCase: parsed.useCase ?? '',
+        }),
+        credentials: 'include',
+      })
+        .then((r) => r.ok ? r.json() : Promise.reject(new Error('Refresh failed')))
+        .then((data: User) => {
+          setUser(data);
+          localStorage.setItem('sheet_analyzer_user', JSON.stringify(data));
+        })
+        .catch(() => {});
     }
   }, []);
 
-  const login = (userData: User) => {
-    setUser(userData);
-    localStorage.setItem('sheet_analyzer_user', JSON.stringify(userData));
+  const login = async (userData: { firstName: string; lastName: string; email: string; useCase?: string }) => {
+    const response = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userData),
+      credentials: 'include',
+    });
+    const bodyText = await response.text();
+    if (!response.ok) {
+      let err: { error?: string } = {};
+      try { err = JSON.parse(bodyText); } catch { err = { error: bodyText }; }
+      throw new Error(err?.error ?? 'Error al registrar');
+    }
+    const userFromApi = JSON.parse(bodyText) as User;
+    setUser(userFromApi);
+    localStorage.setItem('sheet_analyzer_user', JSON.stringify(userFromApi));
   };
 
   const logout = () => {
@@ -150,7 +187,11 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
       const response = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, sheetData: null }),
+        body: JSON.stringify({
+          name,
+          sheetData: null,
+          ...(user?.id && { userId: user.id }),
+        }),
         credentials: 'include',
       });
       console.log('[createProject] Response status:', response.status);

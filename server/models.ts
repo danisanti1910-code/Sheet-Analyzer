@@ -9,11 +9,23 @@ const toJsonOptions = {
   },
 };
 
+const UserSchema = new mongoose.Schema(
+  {
+    email: { type: String, required: true, unique: true },
+    firstName: { type: String, required: true },
+    lastName: { type: String, required: true },
+    useCase: { type: String, default: "" },
+    lastActiveAt: { type: Date, default: Date.now },
+  },
+  { timestamps: true, toJSON: toJsonOptions }
+);
+
 const ProjectSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     sourceUrl: { type: String, default: null },
     sheetData: { type: mongoose.Schema.Types.Mixed, default: null },
+    userId: { type: String, default: null, index: true },
   },
   { timestamps: true, toJSON: toJsonOptions }
 );
@@ -38,6 +50,10 @@ const GlobalDashboardItemSchema = new mongoose.Schema(
   { timestamps: { createdAt: true, updatedAt: false }, toJSON: toJsonOptions }
 );
 
+UserSchema.virtual("id").get(function (this: mongoose.Document) {
+  return this._id.toString();
+});
+
 ProjectSchema.virtual("id").get(function (this: mongoose.Document) {
   return this._id.toString();
 });
@@ -50,6 +66,8 @@ GlobalDashboardItemSchema.virtual("id").get(function (this: mongoose.Document) {
   return this._id.toString();
 });
 
+export const UserModel =
+  mongoose.models?.User ?? mongoose.model("User", UserSchema);
 export const ProjectModel =
   mongoose.models?.Project ?? mongoose.model("Project", ProjectSchema);
 export const ChartModel =

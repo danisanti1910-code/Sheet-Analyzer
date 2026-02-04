@@ -14,7 +14,8 @@ import {
   User as UserIcon,
   LayoutGrid,
   Eye,
-  EyeOff
+  EyeOff,
+  Shield
 } from "lucide-react";
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -55,20 +56,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    login({
-      firstName: "Usuario",
-      lastName: "Demo",
-      email: "usuario@demo.com",
-      useCase: "Personal"
-    });
-    toast({ title: "Bienvenido de nuevo" });
-    setIsLoginOpen(false);
-    setLocation("/projects");
+    try {
+      await login({
+        firstName: "Usuario",
+        lastName: "Demo",
+        email: "usuario@demo.com",
+        useCase: "Personal"
+      });
+      toast({ title: "Bienvenido de nuevo" });
+      setIsLoginOpen(false);
+      setLocation("/projects");
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "Error", variant: "destructive" });
+    }
   };
 
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
     const password = formData.get('password') as string;
@@ -79,15 +84,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    login({
-      firstName: formData.get('firstName') as string,
-      lastName: formData.get('lastName') as string,
-      email: formData.get('email') as string,
-      useCase: formData.get('useCase') as string
-    });
-    toast({ title: "Cuenta creada con éxito" });
-    setIsLoginOpen(false);
-    setLocation("/projects");
+    try {
+      await login({
+        firstName: formData.get('firstName') as string,
+        lastName: formData.get('lastName') as string,
+        email: formData.get('email') as string,
+        useCase: formData.get('useCase') as string
+      });
+      toast({ title: "Cuenta creada con éxito" });
+      setIsLoginOpen(false);
+      setLocation("/projects");
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "Error", variant: "destructive" });
+    }
   };
 
   // If NO USER, show simpler layout without sidebar
@@ -321,6 +330,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
               )}
             </div>
           </div>
+        </div>
+
+        <div className="px-2 py-2">
+          <Link href="/admin">
+            <Button variant={isActive("/admin") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2">
+              <Shield className="h-4 w-4" />
+              {!collapsed && <span>Administración</span>}
+            </Button>
+          </Link>
         </div>
 
         <div className="mt-auto p-4 border-t">

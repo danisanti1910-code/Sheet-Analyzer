@@ -87,18 +87,22 @@ export function FileUpload() {
     executeAction({ type: 'url', data: importUrl });
   };
 
-  const handleAuthSubmit = (e: React.FormEvent) => {
+  const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
-    login({
-      firstName: formData.get('firstName') as string,
-      lastName: formData.get('lastName') as string,
-      email: formData.get('email') as string,
-      useCase: formData.get('useCase') as string
-    });
-    setIsAuthDialogOpen(false);
-    if (pendingAction) {
-      executeAction(pendingAction);
+    try {
+      await login({
+        firstName: formData.get('firstName') as string,
+        lastName: formData.get('lastName') as string,
+        email: formData.get('email') as string,
+        useCase: formData.get('useCase') as string
+      });
+      setIsAuthDialogOpen(false);
+      if (pendingAction) {
+        executeAction(pendingAction);
+      }
+    } catch (err) {
+      // Optionally show toast
     }
   };
 

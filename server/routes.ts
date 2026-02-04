@@ -1,18 +1,66 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertProjectSchema, insertChartSchema, insertGlobalDashboardItemSchema } from "@shared/schema";
+import { insertProjectSchema, insertChartSchema, insertGlobalDashboardItemSchema, insertUserSchema } from "@shared/schema";
 import { z } from "zod";
+
+const SUPER_ADMIN_EMAILS = (process.env.SUPER_ADMIN_EMAIL ?? "")
+  .split(",")
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
+
+function isSuperAdmin(email: string | undefined): boolean {
+  if (!email) return false;
+  return SUPER_ADMIN_EMAILS.includes(email.toLowerCase());
+}
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
   
+  // Auth
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const validated = insertUserSchema.parse(req.body);
+      const user = await storage.createOrUpdateUser(validated);
+      const withRole = {
+        ...user,
+        isSuperAdmin: isSuperAdmin(user.email),
+      };
+      res.status(200).json(withRole);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: "Failed to register", details: String(error) });
+    }
+  });
+
+  // Admin (solo super admin): email por header o por query para depuración
+  app.get("/api/admin/users", async (req, res) => {
+    try {
+      const email = ((req.headers["x-user-email"] ?? req.query.email) as string) ?? "";
+      const trimmedEmail = String(email).trim().toLowerCase();
+      if (!trimmedEmail) {
+        return res.status(401).json({ error: "Falta email (header X-User-Email o query email)" });
+      }
+      if (!isSuperAdmin(trimmedEmail)) {
+        return res.status(403).json({ error: "Forbidden: super admin only" });
+      }
+      const stats = await storage.getAdminUserStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("[GET /api/admin/users]", error);
+      res.status(500).json({ error: "Failed to fetch admin users" });
+    }
+  });
+
   // Projects
   app.get("/api/projects", async (req, res) => {
     try {
-      const projects = await storage.getAllProjects();
+      const userId = (req.query.userId as string) ?? undefined;
+      const projects = await storage.getAllProjects(userId);
       res.json(projects);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch projects" });
@@ -33,9 +81,7 @@ export async function registerRoutes(
 
   app.post("/api/projects", async (req, res) => {
     try {
-      console.log('[POST /api/projects] Request body:', JSON.stringify(req.body));
       const validated = insertProjectSchema.parse(req.body);
-      console.log('[POST /api/projects] Validated data:', JSON.stringify(validated));
       const project = await storage.createProject(validated);
       console.log('[POST /api/projects] Created project:', project.id);
       res.status(201).json(project);

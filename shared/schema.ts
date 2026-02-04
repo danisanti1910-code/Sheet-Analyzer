@@ -1,10 +1,29 @@
 import { z } from "zod";
 
+// User (for auth and admin)
+const userBaseSchema = z.object({
+  email: z.string().email(),
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  useCase: z.string().optional(),
+});
+
+export const insertUserSchema = userBaseSchema;
+export const userSchema = userBaseSchema.extend({
+  id: z.string(),
+  createdAt: z.coerce.date(),
+  lastActiveAt: z.coerce.date(),
+  isSuperAdmin: z.boolean().optional(),
+});
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type User = z.infer<typeof userSchema>;
+
 // Zod schemas for API validation (MongoDB-compatible)
 const projectBaseSchema = z.object({
   name: z.string().min(1),
   sourceUrl: z.string().optional().nullable(),
   sheetData: z.unknown().optional().nullable(),
+  userId: z.string().optional().nullable(),
 });
 
 const chartBaseSchema = z.object({
