@@ -6,6 +6,7 @@ const toJsonOptions = {
     ret.id = ret._id?.toString();
     delete ret._id;
     delete ret.__v;
+    if ("passwordHash" in ret) delete ret.passwordHash;
   },
 };
 
@@ -16,6 +17,7 @@ const UserSchema = new mongoose.Schema(
     lastName: { type: String, required: true },
     useCase: { type: String, default: "" },
     lastActiveAt: { type: Date, default: Date.now },
+    passwordHash: { type: String, default: null },
   },
   { timestamps: true, toJSON: toJsonOptions }
 );

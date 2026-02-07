@@ -6,4 +6,8 @@ server/public
 vite.config.ts.*
 *.tar.gz
 
+# Variables de entorno: NUNCA subir archivos con credenciales
 .env
+.env.local
+.env.*.local
+**/.env

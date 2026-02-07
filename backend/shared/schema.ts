@@ -14,6 +14,8 @@ export const userSchema = userBaseSchema.extend({
   createdAt: z.coerce.date(),
   lastActiveAt: z.coerce.date(),
   isSuperAdmin: z.boolean().optional(),
+  /** Solo presente en BD; nunca se devuelve por la API. */
+  passwordHash: z.string().optional(),
 });
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = z.infer<typeof userSchema>;

@@ -1,4 +1,5 @@
 import { SheetData, parseSheet } from '@/lib/sheet-utils';
+import { apiUrl } from '@/lib/api';
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -87,8 +88,8 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
   const { data: projectsData = [], isLoading } = useQuery({
     queryKey: ['projects', user?.id ?? 'anonymous'],
     queryFn: async () => {
-      const url = user?.id ? `/api/projects?userId=${encodeURIComponent(user.id)}` : '/api/projects';
-      const response = await fetch(url);
+      const url = user?.id ? apiUrl(`/api/projects?userId=${encodeURIComponent(user.id)}`) : apiUrl('/api/projects');
+      const response = await fetch(url, { credentials: 'include' });
       if (!response.ok) throw new Error('Failed to fetch projects');
       return response.json();
     },
@@ -100,7 +101,7 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
     queryFn: async () => {
       const chartsByProject: Record<string, SavedChart[]> = {};
       for (const project of projectsData) {
-        const response = await fetch(`/api/projects/${project.id}/charts`);
+        const response = await fetch(apiUrl(`/api/projects/${project.id}/charts`), { credentials: 'include' });
         if (response.ok) {
           chartsByProject[project.id] = await response.json();
         }
@@ -113,7 +114,7 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
   const { data: globalDashboardItems = [] } = useQuery({
     queryKey: ['globalDashboard'],
     queryFn: async () => {
-      const response = await fetch('/api/global-dashboard');
+      const response = await fetch(apiUrl('/api/global-dashboard'), { credentials: 'include' });
       if (!response.ok) throw new Error('Failed to fetch global dashboard');
       return response.json();
     }
@@ -138,7 +139,7 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
     setUser(parsed);
     // Si el usuario tiene email pero le falta id o isSuperAdmin, refrescar desde la API
     if (parsed.email && (parsed.id === undefined || parsed.isSuperAdmin === undefined)) {
-      fetch('/api/auth/register', {
+      fetch(apiUrl('/api/auth/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -159,7 +160,7 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = async (userData: { firstName: string; lastName: string; email: string; useCase?: string }) => {
-    const response = await fetch('/api/auth/register', {
+    const response = await fetch(apiUrl('/api/auth/register'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(userData),
@@ -184,7 +185,7 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
   const createProjectMutation = useMutation({
     mutationFn: async (name: string) => {
       console.log('[createProject] Sending request with name:', name);
-      const response = await fetch('/api/projects', {
+      const response = await fetch(apiUrl('/api/projects'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -239,8 +240,9 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
 
   const updateProjectMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Project> }) => {
-      const response = await fetch(`/api/projects/${id}`, {
+      const response = await fetch(apiUrl(`/api/projects/${id}`), {
         method: 'PATCH',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates)
       });
@@ -258,7 +260,7 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
 
   const deleteProjectMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+      const response = await fetch(apiUrl(`/api/projects/${id}`), { method: 'DELETE', credentials: 'include' });
       if (!response.ok) throw new Error('Failed to delete project');
     },
     onSuccess: () => {
@@ -273,10 +275,11 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
 
   const createChartMutation = useMutation({
     mutationFn: async (chart: any) => {
-      const response = await fetch('/api/charts', {
+      const response = await fetch(apiUrl('/api/charts'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(chart)
+        body: JSON.stringify(chart),
+        credentials: 'include',
       });
       if (!response.ok) throw new Error('Failed to create chart');
       return response.json();
@@ -308,10 +311,11 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
 
   const updateChartMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<SavedChart> }) => {
-      const response = await fetch(`/api/charts/${id}`, {
+      const response = await fetch(apiUrl(`/api/charts/${id}`), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates)
+        body: JSON.stringify(updates),
+        credentials: 'include',
       });
       if (!response.ok) throw new Error('Failed to update chart');
       return response.json();
@@ -327,7 +331,7 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
 
   const deleteChartMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await fetch(`/api/charts/${id}`, { method: 'DELETE' });
+      const response = await fetch(apiUrl(`/api/charts/${id}`), { method: 'DELETE', credentials: 'include' });
       if (!response.ok) throw new Error('Failed to delete chart');
     },
     onSuccess: () => {
@@ -354,14 +358,15 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
         maxY = Math.max(maxY, item.layout.y + item.layout.h);
       });
 
-      const response = await fetch('/api/global-dashboard', {
+      const response = await fetch(apiUrl('/api/global-dashboard'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId,
           chartId,
           layout: { x: 0, y: maxY, w: 6, h: 4 }
-        })
+        }),
+        credentials: 'include',
       });
       if (!response.ok) throw new Error('Failed to add to global dashboard');
       return response.json();
@@ -381,7 +386,7 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
 
   const removeFromGlobalDashboardMutation = useMutation({
     mutationFn: async (itemId: string) => {
-      const response = await fetch(`/api/global-dashboard/${itemId}`, { method: 'DELETE' });
+      const response = await fetch(apiUrl(`/api/global-dashboard/${itemId}`), { method: 'DELETE', credentials: 'include' });
       if (!response.ok) throw new Error('Failed to remove from global dashboard');
     },
     onSuccess: () => {
@@ -396,10 +401,11 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
   const updateGlobalDashboardLayoutMutation = useMutation({
     mutationFn: async (items: GlobalDashboardItem[]) => {
       await Promise.all(items.map((item: GlobalDashboardItem) => 
-        fetch(`/api/global-dashboard/${item.id}`, {
+        fetch(apiUrl(`/api/global-dashboard/${item.id}`), {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ layout: item.layout })
+          body: JSON.stringify({ layout: item.layout }),
+          credentials: 'include',
         })
       ));
     },
