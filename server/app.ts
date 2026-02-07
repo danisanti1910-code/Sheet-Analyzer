@@ -11,6 +11,8 @@ declare module "http" {
 }
 
 let appPromise: Promise<Express> | null = null;
+let dbConnected = false;
+let dbError: string | null = null;
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -73,7 +75,26 @@ export async function createApp(): Promise<Express> {
       next();
     });
 
-    await connectDb();
+    try {
+      await connectDb();
+      dbConnected = true;
+      dbError = null;
+    } catch (err) {
+      dbConnected = false;
+      dbError = err instanceof Error ? err.message : String(err);
+      log(`[app] MongoDB connection failed: ${dbError}`);
+    }
+
+    app.use((req, res, next) => {
+      if (!dbConnected && req.path.startsWith("/api")) {
+        return res.status(503).json({
+          error: "Database unavailable",
+          details: dbError ?? "Could not connect to MongoDB. Check MONGODB_URI in Vercel.",
+        });
+      }
+      next();
+    });
+
     await registerRoutes(httpServer, app);
 
     app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
