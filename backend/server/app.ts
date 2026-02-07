@@ -4,6 +4,9 @@ import { connectDb } from "./db";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 
+/** Origin permitido para CORS (frontend en otro dominio). En Render: URL de tu front (Vercel/Netlify). */
+const CORS_ORIGIN = process.env.FRONTEND_URL || process.env.CORS_ORIGIN || "";
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
@@ -30,6 +33,20 @@ export async function createApp(): Promise<Express> {
   appPromise = (async () => {
     const app = express();
     const httpServer = createServer(app);
+
+    // CORS: permitir requests desde el frontend cuando está en otro dominio (p. ej. front en Vercel, back en Render)
+    if (CORS_ORIGIN) {
+      app.use((req, res, next) => {
+        const origin = req.headers.origin;
+        const allow = origin === CORS_ORIGIN ? origin : CORS_ORIGIN;
+        res.setHeader("Access-Control-Allow-Origin", allow);
+        res.setHeader("Access-Control-Allow-Credentials", "true");
+        res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-User-Email");
+        if (req.method === "OPTIONS") return res.sendStatus(204);
+        next();
+      });
+    }
 
     // En Vercel el body ya viene parseado en req.body; express.json() leería el stream vacío y pisaría req.body
     if (!process.env.VERCEL) {

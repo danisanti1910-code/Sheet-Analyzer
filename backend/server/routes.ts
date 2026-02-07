@@ -1,8 +1,14 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import bcrypt from "bcryptjs";
 import { storage } from "./storage";
 import { insertProjectSchema, insertChartSchema, insertGlobalDashboardItemSchema, insertUserSchema } from "@shared/schema";
 import { z } from "zod";
+
+const setPasswordSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8, "Mínimo 8 caracteres"),
+});
 
 const SUPER_ADMIN_EMAILS = (process.env.SUPER_ADMIN_EMAIL ?? "")
   .split(",")
@@ -37,16 +43,55 @@ export async function registerRoutes(
     }
   });
 
-  // Admin (solo super admin): email por header o por query para depuración
+  // Asignar / cambiar contraseña del super administrador (solo emails en SUPER_ADMIN_EMAIL)
+  app.post("/api/auth/set-password", async (req, res) => {
+    try {
+      const parsed = setPasswordSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.flatten() });
+      }
+      const { email, password } = parsed.data;
+      const trimmedEmail = email.trim().toLowerCase();
+      if (!isSuperAdmin(trimmedEmail)) {
+        return res.status(403).json({ error: "Solo un super administrador puede asignar contraseña. Añade tu email a SUPER_ADMIN_EMAIL en .env" });
+      }
+      const existing = await storage.getUserByEmail(trimmedEmail);
+      if (!existing) {
+        return res.status(400).json({ error: "Primero inicia sesión en la app con tu nombre y este email; después podrás asignar la contraseña de administrador." });
+      }
+      const hash = await bcrypt.hash(password, 10);
+      const updated = await storage.setUserPassword(trimmedEmail, hash);
+      if (!updated) {
+        return res.status(500).json({ error: "No se pudo guardar la contraseña" });
+      }
+      res.status(200).json({ message: "Contraseña guardada. Usa esta contraseña en la página de Administración." });
+    } catch (error) {
+      console.error("[POST /api/auth/set-password]", error);
+      res.status(500).json({ error: "Error al guardar contraseña", details: String(error) });
+    }
+  });
+
+  // Admin (solo super admin): requiere email; si el usuario tiene contraseña, también X-Admin-Password
   app.get("/api/admin/users", async (req, res) => {
     try {
       const email = ((req.headers["x-user-email"] ?? req.query.email) as string) ?? "";
       const trimmedEmail = String(email).trim().toLowerCase();
+      const adminPassword = (req.headers["x-admin-password"] as string) ?? "";
       if (!trimmedEmail) {
         return res.status(401).json({ error: "Falta email (header X-User-Email o query email)" });
       }
       if (!isSuperAdmin(trimmedEmail)) {
         return res.status(403).json({ error: "Forbidden: super admin only" });
+      }
+      const storedHash = await storage.getPasswordHash(trimmedEmail);
+      if (storedHash) {
+        if (!adminPassword) {
+          return res.status(401).json({ error: "Contraseña de administrador requerida", code: "ADMIN_PASSWORD_REQUIRED" });
+        }
+        const ok = await bcrypt.compare(adminPassword, storedHash);
+        if (!ok) {
+          return res.status(401).json({ error: "Contraseña incorrecta" });
+        }
       }
       const stats = await storage.getAdminUserStats();
       res.json(stats);

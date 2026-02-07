@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { useSheet } from "@/lib/sheet-context";
+import { apiUrl } from "@/lib/api";
 import { Layout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -10,8 +12,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useQuery } from "@tanstack/react-query";
-import { Shield, Users, BarChart3, Upload, Link2, Loader2, RefreshCw } from "lucide-react";
+import { Shield, Users, BarChart3, Upload, Link2, Loader2, RefreshCw, KeyRound } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -39,16 +44,29 @@ const CHART_TYPE_LABELS: Record<string, string> = {
 
 export default function Admin() {
   const { user } = useSheet();
+  const [adminPassword, setAdminPassword] = useState("");
+  const [setPasswordValue, setSetPasswordValue] = useState({ password: "", confirm: "" });
+  const [setPasswordStatus, setSetPasswordStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [setPasswordMessage, setSetPasswordMessage] = useState("");
+  const [showSetPasswordForm, setShowSetPasswordForm] = useState(false);
 
   const { data: users = [], isLoading, error, refetch } = useQuery({
-    queryKey: ["admin-users", user?.email],
+    queryKey: ["admin-users", user?.email, adminPassword],
     queryFn: async (): Promise<AdminUserStats[]> => {
       if (!user?.email) throw new Error("No user");
-      const res = await fetch("/api/admin/users", {
-        headers: { "X-User-Email": user.email },
+      const headers: Record<string, string> = { "X-User-Email": user.email };
+      if (adminPassword) headers["X-Admin-Password"] = adminPassword;
+      const res = await fetch(apiUrl("/api/admin/users"), {
+        headers,
         credentials: "include",
       });
       if (res.status === 403) throw new Error("FORBIDDEN");
+      if (res.status === 401) {
+        const err = await res.json().catch(() => ({}));
+        const e = new Error(err?.error ?? "No autorizado") as Error & { code?: string };
+        e.code = err?.code;
+        throw e;
+      }
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err?.error ?? "Error al cargar usuarios");
@@ -63,6 +81,49 @@ export default function Admin() {
   });
 
   const isForbidden = error?.message === "FORBIDDEN";
+  const needsAdminPassword = (error as Error & { code?: string })?.code === "ADMIN_PASSWORD_REQUIRED";
+
+  const handleSetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (setPasswordValue.password.length < 8) {
+      setSetPasswordMessage("Mínimo 8 caracteres");
+      setSetPasswordStatus("error");
+      return;
+    }
+    if (setPasswordValue.password !== setPasswordValue.confirm) {
+      setSetPasswordMessage("Las contraseñas no coinciden");
+      setSetPasswordStatus("error");
+      return;
+    }
+    setSetPasswordStatus("loading");
+    setSetPasswordMessage("");
+    try {
+      const res = await fetch(apiUrl("/api/auth/set-password"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          email: user?.email,
+          password: setPasswordValue.password,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setSetPasswordMessage(data?.error ?? "Error al guardar");
+        setSetPasswordStatus("error");
+        return;
+      }
+      setSetPasswordStatus("success");
+      setSetPasswordMessage(data?.message ?? "Contraseña guardada.");
+      setSetPasswordValue({ password: "", confirm: "" });
+      setAdminPassword(setPasswordValue.password);
+      setShowSetPasswordForm(false);
+      refetch();
+    } catch {
+      setSetPasswordMessage("Error de conexión");
+      setSetPasswordStatus("error");
+    }
+  };
 
   if (!user) {
     return (
@@ -88,13 +149,102 @@ export default function Admin() {
     );
   }
 
-  if (!isLoading && error && !isForbidden) {
+  if (!isLoading && error && !isForbidden && !needsAdminPassword) {
     return (
       <Layout>
         <div className="p-8 flex flex-col items-center justify-center min-h-[50vh]">
           <p className="text-destructive font-medium">Error al cargar usuarios</p>
           <p className="text-muted-foreground mt-2 text-sm">{error.message}</p>
           <button onClick={() => refetch()} className="mt-4 text-sm text-primary hover:underline">Reintentar</button>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!isLoading && needsAdminPassword) {
+    return (
+      <Layout>
+        <div className="p-8 flex flex-col items-center justify-center min-h-[50vh] max-w-sm mx-auto">
+          <KeyRound className="h-12 w-12 text-muted-foreground mb-4" />
+          <h2 className="text-xl font-semibold">Contraseña de administrador</h2>
+
+          {showSetPasswordForm ? (
+            <>
+              <p className="text-muted-foreground text-sm text-center mt-2 mb-4">
+                Establece una contraseña para acceder al panel de administración. Mínimo 8 caracteres.
+              </p>
+              <form onSubmit={handleSetPassword} className="w-full space-y-3">
+                <Label htmlFor="newPassword">Nueva contraseña</Label>
+                <Input
+                  id="newPassword"
+                  type="password"
+                  placeholder="Mínimo 8 caracteres"
+                  value={setPasswordValue.password}
+                  onChange={(e) => setSetPasswordValue((p) => ({ ...p, password: e.target.value }))}
+                  minLength={8}
+                  className="w-full"
+                />
+                <Label htmlFor="confirmPassword">Confirmar contraseña</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="Repite la contraseña"
+                  value={setPasswordValue.confirm}
+                  onChange={(e) => setSetPasswordValue((p) => ({ ...p, confirm: e.target.value }))}
+                  className="w-full"
+                />
+                {setPasswordMessage && (
+                  <p className={setPasswordStatus === "error" ? "text-destructive text-sm" : "text-muted-foreground text-sm"}>
+                    {setPasswordMessage}
+                  </p>
+                )}
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" className="flex-1" onClick={() => setShowSetPasswordForm(false)}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" className="flex-1" disabled={setPasswordStatus === "loading"}>
+                    {setPasswordStatus === "loading" ? "Guardando…" : "Guardar contraseña"}
+                  </Button>
+                </div>
+              </form>
+            </>
+          ) : (
+            <>
+              <p className="text-muted-foreground text-sm text-center mt-2 mb-4">
+                Tu cuenta es super administrador. Introduce la contraseña que configuraste para acceder al panel.
+              </p>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const form = e.currentTarget;
+                  const input = form.querySelector<HTMLInputElement>('input[name="adminPassword"]');
+                  if (input?.value) {
+                    setAdminPassword(input.value);
+                    refetch();
+                  }
+                }}
+                className="w-full space-y-3"
+              >
+                <Label htmlFor="adminPassword">Contraseña</Label>
+                <Input
+                  id="adminPassword"
+                  name="adminPassword"
+                  type="password"
+                  placeholder="Contraseña de administrador"
+                  autoFocus
+                  className="w-full"
+                />
+                <Button type="submit" className="w-full">Entrar</Button>
+              </form>
+              <button
+                type="button"
+                onClick={() => setShowSetPasswordForm(true)}
+                className="mt-4 text-sm text-primary hover:underline"
+              >
+                ¿Primera vez? Establecer contraseña
+              </button>
+            </>
+          )}
         </div>
       </Layout>
     );
@@ -206,6 +356,47 @@ export default function Admin() {
                 </Table>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5" />
+              Contraseña de administrador
+            </CardTitle>
+            <p className="text-sm text-muted-foreground font-normal">
+              Puedes cambiar la contraseña que usas para acceder a esta página.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSetPassword} className="max-w-sm space-y-3">
+              <Label htmlFor="changePassword">Nueva contraseña</Label>
+              <Input
+                id="changePassword"
+                type="password"
+                placeholder="Mínimo 8 caracteres"
+                value={setPasswordValue.password}
+                onChange={(e) => setSetPasswordValue((p) => ({ ...p, password: e.target.value }))}
+                minLength={8}
+              />
+              <Label htmlFor="changeConfirm">Confirmar</Label>
+              <Input
+                id="changeConfirm"
+                type="password"
+                placeholder="Repite la contraseña"
+                value={setPasswordValue.confirm}
+                onChange={(e) => setSetPasswordValue((p) => ({ ...p, confirm: e.target.value }))}
+              />
+              {setPasswordMessage && (
+                <p className={setPasswordStatus === "error" ? "text-destructive text-sm" : "text-muted-foreground text-sm"}>
+                  {setPasswordMessage}
+                </p>
+              )}
+              <Button type="submit" size="sm" disabled={setPasswordStatus === "loading"}>
+                {setPasswordStatus === "loading" ? "Guardando…" : "Cambiar contraseña"}
+              </Button>
+            </form>
           </CardContent>
         </Card>
 

@@ -32,6 +32,8 @@ export interface AdminUserStats {
 export interface IStorage {
   createOrUpdateUser(data: InsertUser): Promise<User>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  setUserPassword(email: string, passwordHash: string): Promise<boolean>;
+  getPasswordHash(email: string): Promise<string | null>;
   getAllUsers(): Promise<User[]>;
   getAdminUserStats(): Promise<AdminUserStats[]>;
 
@@ -83,6 +85,19 @@ export class DatabaseStorage implements IStorage {
   async getUserByEmail(email: string): Promise<User | undefined> {
     const doc = await UserModel.findOne({ email }).exec();
     return toPlain<User>(doc);
+  }
+
+  async setUserPassword(email: string, passwordHash: string): Promise<boolean> {
+    const result = await UserModel.findOneAndUpdate(
+      { email },
+      { $set: { passwordHash, lastActiveAt: new Date() } }
+    ).exec();
+    return result != null;
+  }
+
+  async getPasswordHash(email: string): Promise<string | null> {
+    const doc = await UserModel.findOne({ email }).select("passwordHash").exec();
+    return doc?.passwordHash ?? null;
   }
 
   async getAllUsers(): Promise<User[]> {
