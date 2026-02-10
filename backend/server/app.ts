@@ -34,19 +34,21 @@ export async function createApp(): Promise<Express> {
     const app = express();
     const httpServer = createServer(app);
 
-    // CORS: permitir requests desde el frontend cuando está en otro dominio (p. ej. front en Vercel, back en Render)
-    if (CORS_ORIGIN) {
-      app.use((req, res, next) => {
-        const origin = req.headers.origin;
-        const allow = origin === CORS_ORIGIN ? origin : CORS_ORIGIN;
+    // CORS: permitir front en otro dominio (FRONTEND_URL) y siempre localhost para desarrollo local contra backend en Render
+    app.use((req, res, next) => {
+      const origin = req.headers.origin;
+      const isLocalhost = origin && /^https?:\/\/localhost(:\d+)?$/i.test(origin);
+      const matchesConfigured = CORS_ORIGIN && origin === CORS_ORIGIN;
+      const allow = matchesConfigured ? origin! : (isLocalhost ? origin! : CORS_ORIGIN || "");
+      if (allow) {
         res.setHeader("Access-Control-Allow-Origin", allow);
         res.setHeader("Access-Control-Allow-Credentials", "true");
         res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
-        res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-User-Email");
-        if (req.method === "OPTIONS") return res.sendStatus(204);
-        next();
-      });
-    }
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-User-Email, X-Admin-Password");
+      }
+      if (req.method === "OPTIONS") return res.sendStatus(204);
+      next();
+    });
 
     // En Vercel el body ya viene parseado en req.body; express.json() leería el stream vacío y pisaría req.body
     if (!process.env.VERCEL) {

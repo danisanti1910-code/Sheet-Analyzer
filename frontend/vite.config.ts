@@ -42,10 +42,18 @@ export default defineConfig({
   },
   server: {
     host: "0.0.0.0",
+    port: 5173,
     allowedHosts: true,
     fs: {
       strict: true,
       deny: ["**/.*"],
+    },
+    // Cuando corres solo el frontend (npm run dev:client), las peticiones /api van al backend
+    proxy: {
+      "/api": {
+        target: process.env.VITE_PROXY_TARGET ?? "http://localhost:5000",
+        changeOrigin: true,
+      },
     },
   },
 });
