@@ -49,37 +49,16 @@ export async function registerRoutes(
         passwordHash: hash,
       });
 
-      // Generate verification token and send email
-      const verificationToken = crypto.randomBytes(32).toString("hex");
-      const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-      await storage.setVerificationToken(email, verificationToken, expiry);
-
-      let emailSent = false;
-      try {
-        await sendVerificationEmail(email, verificationToken, validated.firstName);
-        emailSent = true;
-        console.log(`[Register] Verification email sent successfully to ${email}`);
-      } catch (emailErr) {
-        console.error("═══════════════════════════════════════════════════════");
-        console.error("[Register] ❌ FAILED to send verification email:");
-        console.error(`  Email: ${email}`);
-        console.error(`  Error:`, emailErr);
-        console.error(`  Error details:`, emailErr instanceof Error ? emailErr.message : String(emailErr));
-        console.error("═══════════════════════════════════════════════════════");
-        // Don't block registration if email fails, but log it prominently
-      }
+      // Auto-verify email (verification disabled for now)
+      await storage.verifyUserEmail(email);
 
       const withRole = {
         ...user,
         isSuperAdmin: isSuperAdmin(user.email),
-        emailVerified: false,
+        emailVerified: true,
       };
       
-      const message = emailSent
-        ? "Cuenta creada. Revisa tu correo para verificar tu cuenta."
-        : "Cuenta creada, pero hubo un problema al enviar el correo de verificación. Contacta al soporte.";
-      
-      res.status(201).json({ ...withRole, message, emailSent });
+      res.status(201).json({ ...withRole, message: "Cuenta creada exitosamente. Ya puedes iniciar sesión." });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: error.errors });
@@ -106,15 +85,7 @@ export async function registerRoutes(
         return res.status(401).json({ error: "Contraseña incorrecta." });
       }
 
-      // Check if email is verified
-      const verified = await storage.isEmailVerified(email);
-      if (!verified) {
-        return res.status(403).json({
-          error: "Tu correo electrónico aún no ha sido verificado. Revisa tu bandeja de entrada.",
-          code: "EMAIL_NOT_VERIFIED",
-        });
-      }
-
+      // Email verification disabled - allow login directly
       // Update lastActiveAt
       await storage.createOrUpdateUser({
         email: user.email,
