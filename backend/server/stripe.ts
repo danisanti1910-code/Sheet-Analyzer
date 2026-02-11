@@ -106,7 +106,6 @@ export function registerStripeRoutes(app: Express): void {
       res.json({
         plan: user.subscriptionPlan ?? "free",
         status: user.subscriptionStatus ?? "none",
-        stripeSubscriptionId: user.stripeSubscriptionId ?? null,
       });
     } catch (error) {
       log(`[stripe/subscription] ${error}`, "stripe");
