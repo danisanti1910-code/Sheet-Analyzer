@@ -7,6 +7,9 @@ const toJsonOptions = {
     delete ret._id;
     delete ret.__v;
     if ("passwordHash" in ret) delete ret.passwordHash;
+    // Don't expose internal Stripe IDs to the client (keep plan/status)
+    if ("stripeCustomerId" in ret) delete ret.stripeCustomerId;
+    if ("stripeSubscriptionId" in ret) delete ret.stripeSubscriptionId;
   },
 };
 
@@ -18,6 +21,11 @@ const UserSchema = new mongoose.Schema(
     useCase: { type: String, default: "" },
     lastActiveAt: { type: Date, default: Date.now },
     passwordHash: { type: String, default: null },
+    // Stripe subscription fields
+    stripeCustomerId: { type: String, default: null },
+    subscriptionPlan: { type: String, enum: ["free", "pro", "business"], default: "free" },
+    stripeSubscriptionId: { type: String, default: null },
+    subscriptionStatus: { type: String, enum: ["active", "canceled", "past_due", "none"], default: "none" },
   },
   { timestamps: true, toJSON: toJsonOptions }
 );

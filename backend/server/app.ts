@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction, type Express } from "exp
 import { createServer } from "http";
 import { connectDb } from "./db";
 import { registerRoutes } from "./routes";
+import { registerStripeRoutes } from "./stripe";
 import { serveStatic } from "./static";
 
 /** Frontend conocido en Vercel (fallback si FRONTEND_URL no está definida). */
@@ -151,6 +152,7 @@ export async function createApp(): Promise<Express> {
     });
 
     await registerRoutes(httpServer, app);
+    registerStripeRoutes(app);
 
     app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
       const status = (err as { status?: number; statusCode?: number }).status ?? (err as { statusCode?: number }).statusCode ?? 500;

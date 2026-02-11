@@ -10,6 +10,7 @@ import Dashboards from "@/pages/dashboards";
 import GlobalDashboard from "@/pages/global-dashboard";
 import Projects from "@/pages/projects";
 import Admin from "@/pages/admin";
+import Pricing from "@/pages/pricing";
 
 function Router() {
   const { user } = useSheet();
@@ -20,6 +21,7 @@ function Router() {
         {user ? <Redirect to="/projects" /> : <Home />}
       </Route>
       <Route path="/projects" component={Projects} />
+      <Route path="/pricing" component={Pricing} />
       <Route path="/admin" component={Admin} />
 
       {/* New Routes */}

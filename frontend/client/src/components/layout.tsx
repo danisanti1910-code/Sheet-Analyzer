@@ -15,8 +15,10 @@ import {
   LayoutGrid,
   Eye,
   EyeOff,
-  Shield
+  Shield,
+  CreditCard,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -34,7 +36,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
-  const { projects, activeProjectId, setActiveProjectId, createProject, deleteProject, deleteChart, user, login, logout, activeProject } = useSheet();
+  const { projects, activeProjectId, setActiveProjectId, createProject, deleteProject, deleteChart, user, login, logout, activeProject, currentPlan } = useSheet();
   const [collapsed, setCollapsed] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -282,6 +284,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <Link href="/dashboard-global" className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${isActive('/dashboard-global') ? 'bg-primary text-primary-foreground' : 'hover:bg-sidebar-accent'}`}>
                   <LayoutDashboard className="h-4 w-4" /> {!collapsed && <span>Dashboard Principal</span>}
                 </Link>
+                <Link href="/pricing" className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${isActive('/pricing') ? 'bg-primary text-primary-foreground' : 'hover:bg-sidebar-accent'}`}>
+                  <CreditCard className="h-4 w-4" /> {!collapsed && <span>Planes</span>}
+                </Link>
              </nav>
           </div>
 
@@ -349,7 +354,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     <UserIcon className="h-4 w-4" />
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-xs font-bold truncate max-w-[100px]">{user.firstName}</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs font-bold truncate max-w-[80px]">{user.firstName}</span>
+                      <Badge variant={currentPlan === "free" ? "secondary" : "default"} className="text-[9px] px-1.5 py-0 h-4 capitalize">
+                        {currentPlan}
+                      </Badge>
+                    </div>
                     <span className="text-[10px] text-muted-foreground truncate max-w-[100px]">{user.email}</span>
                   </div>
                </div>

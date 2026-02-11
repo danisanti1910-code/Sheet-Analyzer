@@ -2,7 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import bcrypt from "bcryptjs";
 import { storage } from "./storage";
-import { insertProjectSchema, insertChartSchema, insertGlobalDashboardItemSchema, insertUserSchema } from "@shared/schema";
+import { insertProjectSchema, insertChartSchema, insertGlobalDashboardItemSchema, insertUserSchema, PLAN_LIMITS } from "@shared/schema";
+import type { PlanName } from "@shared/schema";
 import { z } from "zod";
 
 const setPasswordSchema = z.object({
@@ -127,6 +128,27 @@ export async function registerRoutes(
   app.post("/api/projects", async (req, res) => {
     try {
       const validated = insertProjectSchema.parse(req.body);
+
+      // --- Plan-based project limit check ---
+      const userId = validated.userId;
+      if (userId) {
+        const user = await storage.getUserById(userId);
+        if (user) {
+          const plan: PlanName = (user.subscriptionPlan as PlanName) ?? "free";
+          const limit = PLAN_LIMITS[plan];
+          const currentCount = await storage.getProjectCountByUser(userId);
+          if (currentCount >= limit) {
+            return res.status(403).json({
+              error: "Project limit reached",
+              details: `Tu plan "${plan}" permite un máximo de ${limit} proyecto(s). Actualiza tu plan para crear más.`,
+              plan,
+              limit,
+              current: currentCount,
+            });
+          }
+        }
+      }
+
       const project = await storage.createProject(validated);
       console.log('[POST /api/projects] Created project:', project.id);
       res.status(201).json(project);

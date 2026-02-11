@@ -1,5 +1,18 @@
 import { z } from "zod";
 
+// Subscription plans
+export const PLAN_NAMES = ["free", "pro", "business"] as const;
+export type PlanName = (typeof PLAN_NAMES)[number];
+
+export const PLAN_LIMITS: Record<PlanName, number> = {
+  free: 3,
+  pro: 25,
+  business: Infinity,
+};
+
+export const subscriptionStatusEnum = z.enum(["active", "canceled", "past_due", "none"]);
+export type SubscriptionStatus = z.infer<typeof subscriptionStatusEnum>;
+
 // User (for auth and admin)
 const userBaseSchema = z.object({
   email: z.string().email(),
@@ -16,6 +29,11 @@ export const userSchema = userBaseSchema.extend({
   isSuperAdmin: z.boolean().optional(),
   /** Solo presente en BD; nunca se devuelve por la API. */
   passwordHash: z.string().optional(),
+  // Stripe subscription fields
+  stripeCustomerId: z.string().optional(),
+  subscriptionPlan: z.enum(PLAN_NAMES).default("free"),
+  stripeSubscriptionId: z.string().optional(),
+  subscriptionStatus: subscriptionStatusEnum.default("none"),
 });
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = z.infer<typeof userSchema>;

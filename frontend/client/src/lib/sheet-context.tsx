@@ -48,7 +48,18 @@ export interface User {
   email: string;
   useCase?: string;
   isSuperAdmin?: boolean;
+  // Subscription fields
+  subscriptionPlan?: "free" | "pro" | "business";
+  subscriptionStatus?: "active" | "canceled" | "past_due" | "none";
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
 }
+
+export const PLAN_PROJECT_LIMITS: Record<string, number> = {
+  free: 3,
+  pro: 25,
+  business: Infinity,
+};
 
 interface SheetContextType {
   projects: Project[];
@@ -75,6 +86,11 @@ interface SheetContextType {
 
   activeProject: Project | null;
   isLoading: boolean;
+
+  /** Current subscription plan name */
+  currentPlan: string;
+  /** Max projects for the current plan */
+  projectLimit: number;
 }
 
 const SheetContext = createContext<SheetContextType | undefined>(undefined);
@@ -131,6 +147,9 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
   const activeProject = useMemo(() => 
     projects.find(p => p.id === activeProjectId) || null
   , [projects, activeProjectId]);
+
+  const currentPlan = user?.subscriptionPlan ?? "free";
+  const projectLimit = PLAN_PROJECT_LIMITS[currentPlan] ?? 3;
 
   useEffect(() => {
     const savedUser = localStorage.getItem('sheet_analyzer_user');
@@ -465,7 +484,9 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
       user,
       login,
       logout,
-      isLoading
+      isLoading,
+      currentPlan,
+      projectLimit,
     }}>
       {children}
     </SheetContext.Provider>

@@ -7,6 +7,8 @@ import type {
   InsertGlobalDashboardItem,
   User,
   InsertUser,
+  PlanName,
+  SubscriptionStatus,
 } from "@shared/schema";
 import {
   UserModel,
@@ -32,10 +34,16 @@ export interface AdminUserStats {
 export interface IStorage {
   createOrUpdateUser(data: InsertUser): Promise<User>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUserById(id: string): Promise<User | undefined>;
   setUserPassword(email: string, passwordHash: string): Promise<boolean>;
   getPasswordHash(email: string): Promise<string | null>;
   getAllUsers(): Promise<User[]>;
   getAdminUserStats(): Promise<AdminUserStats[]>;
+  // Stripe subscription
+  setStripeCustomerId(email: string, stripeCustomerId: string): Promise<void>;
+  getUserByStripeCustomerId(stripeCustomerId: string): Promise<User | undefined>;
+  updateSubscription(email: string, data: { subscriptionPlan: PlanName; stripeSubscriptionId: string | null; subscriptionStatus: SubscriptionStatus }): Promise<void>;
+  getProjectCountByUser(userId: string): Promise<number>;
 
   getAllProjects(userId?: string | null): Promise<Project[]>;
   getProject(id: string): Promise<Project | undefined>;
@@ -84,6 +92,12 @@ export class DatabaseStorage implements IStorage {
 
   async getUserByEmail(email: string): Promise<User | undefined> {
     const doc = await UserModel.findOne({ email }).exec();
+    return toPlain<User>(doc);
+  }
+
+  async getUserById(id: string): Promise<User | undefined> {
+    if (!id || !isValidObjectId(id)) return undefined;
+    const doc = await UserModel.findById(id).exec();
     return toPlain<User>(doc);
   }
 
@@ -138,6 +152,27 @@ export class DatabaseStorage implements IStorage {
       });
     }
     return stats;
+  }
+
+  // Stripe subscription methods
+  async setStripeCustomerId(email: string, stripeCustomerId: string): Promise<void> {
+    await UserModel.findOneAndUpdate({ email }, { $set: { stripeCustomerId } }).exec();
+  }
+
+  async getUserByStripeCustomerId(stripeCustomerId: string): Promise<User | undefined> {
+    const doc = await UserModel.findOne({ stripeCustomerId }).exec();
+    return toPlain<User>(doc);
+  }
+
+  async updateSubscription(
+    email: string,
+    data: { subscriptionPlan: PlanName; stripeSubscriptionId: string | null; subscriptionStatus: SubscriptionStatus }
+  ): Promise<void> {
+    await UserModel.findOneAndUpdate({ email }, { $set: data }).exec();
+  }
+
+  async getProjectCountByUser(userId: string): Promise<number> {
+    return ProjectModel.countDocuments({ userId }).exec();
   }
 
   async getAllProjects(userId?: string | null): Promise<Project[]> {
