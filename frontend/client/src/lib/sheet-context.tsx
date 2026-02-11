@@ -200,8 +200,10 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
       try { err = JSON.parse(bodyText); } catch { err = { error: bodyText }; }
       throw new Error(err?.error ?? 'Error al registrar');
     }
-    // Don't auto-login — user must verify email first.
-    // The auth-dialog will show the "check your email" screen.
+    // Email verification disabled - auto-login after registration
+    const userFromApi = JSON.parse(bodyText) as User;
+    setUser(userFromApi);
+    localStorage.setItem('sheet_analyzer_user', JSON.stringify(userFromApi));
   };
 
   const loginWithCredentials = async (email: string, password: string) => {

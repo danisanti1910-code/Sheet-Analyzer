@@ -81,13 +81,7 @@ export function AuthDialog({
       onSuccess?.();
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Error al iniciar sesión";
-      // Check if it's an email not verified error
-      if (errorMsg.includes("no ha sido verificado")) {
-        setRegisteredEmail(email);
-        setView("resend-verify");
-      } else {
-        toast({ title: errorMsg, variant: "destructive" });
-      }
+      toast({ title: errorMsg, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -114,8 +108,9 @@ export function AuthDialog({
         useCase: formData.get("regUseCase") as string,
         password,
       });
-      setRegisteredEmail(email);
-      setView("verify-sent");
+      toast({ title: "Cuenta creada con éxito" });
+      onOpenChange(false);
+      onSuccess?.();
     } catch (err) {
       toast({
         title: err instanceof Error ? err.message : "Error al registrar",
