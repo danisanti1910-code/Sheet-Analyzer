@@ -1,25 +1,18 @@
-import React, { useCallback, useState } from 'react';
+import React, { useState } from 'react';
 import { useSheet } from '@/lib/sheet-context';
 import { parseSheet } from '@/lib/sheet-utils';
 import { useLocation } from 'wouter';
-import { Upload, FileType, CheckCircle2, Loader2, Link as LinkIcon, UserPlus } from 'lucide-react';
+import { Upload, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { 
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AuthDialog } from '@/components/auth-dialog';
 
 export function FileUpload() {
-  const { activeProject, updateProject, activeProjectId, setActiveProjectId, createProject, user, login } = useSheet();
+  const { activeProject, updateProject, activeProjectId, setActiveProjectId, createProject, user } = useSheet();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [isDragging, setIsDragging] = useState(false);
@@ -87,22 +80,9 @@ export function FileUpload() {
     executeAction({ type: 'url', data: importUrl });
   };
 
-  const handleAuthSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const formData = new FormData(e.target as HTMLFormElement);
-    try {
-      await login({
-        firstName: formData.get('firstName') as string,
-        lastName: formData.get('lastName') as string,
-        email: formData.get('email') as string,
-        useCase: formData.get('useCase') as string
-      });
-      setIsAuthDialogOpen(false);
-      if (pendingAction) {
-        executeAction(pendingAction);
-      }
-    } catch (err) {
-      // Optionally show toast
+  const handleAuthSuccess = () => {
+    if (pendingAction) {
+      executeAction(pendingAction);
     }
   };
 
@@ -139,48 +119,12 @@ export function FileUpload() {
         </Card>
       </div>
 
-      <Dialog open={isAuthDialogOpen} onOpenChange={setIsAuthDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-               <UserPlus className="h-5 w-5 text-primary" />
-               Crea una cuenta para continuar
-            </DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">Para analizar y guardar tus proyectos, necesitas una cuenta gratuita.</p>
-          <form onSubmit={handleAuthSubmit} className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="auth-firstName">Nombre</Label>
-                <Input id="auth-firstName" name="firstName" placeholder="Nombre" required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="auth-lastName">Apellido</Label>
-                <Input id="auth-lastName" name="lastName" placeholder="Apellido" required />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="auth-email">Correo electrónico</Label>
-              <Input id="auth-email" name="email" type="email" placeholder="tu@email.com" required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="auth-use-case">¿Para qué usarás el sistema?</Label>
-              <Select name="useCase" required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona una opción" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="business">Análisis de Negocios</SelectItem>
-                  <SelectItem value="education">Educación / Investigación</SelectItem>
-                  <SelectItem value="personal">Uso Personal</SelectItem>
-                  <SelectItem value="marketing">Marketing y Ventas</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button type="submit" className="w-full h-11 mt-4">Registrarme y analizar</Button>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <AuthDialog
+        open={isAuthDialogOpen}
+        onOpenChange={setIsAuthDialogOpen}
+        defaultTab="register"
+        onSuccess={handleAuthSuccess}
+      />
     </div>
   );
 }

@@ -33,12 +33,23 @@ export interface AdminUserStats {
 
 export interface IStorage {
   createOrUpdateUser(data: InsertUser): Promise<User>;
+  createNewUser(data: InsertUser & { passwordHash: string }): Promise<User>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserById(id: string): Promise<User | undefined>;
   setUserPassword(email: string, passwordHash: string): Promise<boolean>;
   getPasswordHash(email: string): Promise<string | null>;
   getAllUsers(): Promise<User[]>;
   getAdminUserStats(): Promise<AdminUserStats[]>;
+  // Email verification
+  setVerificationToken(email: string, token: string, expiry: Date): Promise<void>;
+  getVerificationToken(email: string): Promise<{ token: string; expiry: Date } | null>;
+  verifyUserEmail(email: string): Promise<boolean>;
+  getUserByVerificationToken(token: string): Promise<User | undefined>;
+  isEmailVerified(email: string): Promise<boolean>;
+  // Password reset
+  setResetPasswordToken(email: string, token: string, expiry: Date): Promise<void>;
+  getUserByResetToken(token: string): Promise<(User & { resetPasswordTokenExpiry?: Date }) | undefined>;
+  clearResetPasswordToken(email: string): Promise<void>;
   // Stripe subscription
   setStripeCustomerId(email: string, stripeCustomerId: string): Promise<void>;
   getUserByStripeCustomerId(stripeCustomerId: string): Promise<User | undefined>;
@@ -90,6 +101,19 @@ export class DatabaseStorage implements IStorage {
     return { ...plain, isSuperAdmin: undefined } as User;
   }
 
+  async createNewUser(data: InsertUser & { passwordHash: string }): Promise<User> {
+    const doc = await UserModel.create({
+      email: data.email,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      useCase: data.useCase ?? "",
+      passwordHash: data.passwordHash,
+      lastActiveAt: new Date(),
+    });
+    const plain = doc.toJSON() as Record<string, unknown>;
+    return { ...plain, isSuperAdmin: undefined } as User;
+  }
+
   async getUserByEmail(email: string): Promise<User | undefined> {
     const doc = await UserModel.findOne({ email }).exec();
     return toPlain<User>(doc);
@@ -112,6 +136,63 @@ export class DatabaseStorage implements IStorage {
   async getPasswordHash(email: string): Promise<string | null> {
     const doc = await UserModel.findOne({ email }).select("passwordHash").exec();
     return doc?.passwordHash ?? null;
+  }
+
+  // Email verification methods
+  async setVerificationToken(email: string, token: string, expiry: Date): Promise<void> {
+    await UserModel.findOneAndUpdate(
+      { email },
+      { $set: { verificationToken: token, verificationTokenExpiry: expiry } }
+    ).exec();
+  }
+
+  async getVerificationToken(email: string): Promise<{ token: string; expiry: Date } | null> {
+    const doc = await UserModel.findOne({ email })
+      .select("verificationToken verificationTokenExpiry")
+      .exec();
+    if (!doc?.verificationToken || !doc?.verificationTokenExpiry) return null;
+    return { token: doc.verificationToken, expiry: doc.verificationTokenExpiry };
+  }
+
+  async verifyUserEmail(email: string): Promise<boolean> {
+    const result = await UserModel.findOneAndUpdate(
+      { email },
+      { $set: { emailVerified: true, verificationToken: null, verificationTokenExpiry: null } }
+    ).exec();
+    return result != null;
+  }
+
+  async getUserByVerificationToken(token: string): Promise<User | undefined> {
+    const doc = await UserModel.findOne({ verificationToken: token }).exec();
+    return toPlain<User>(doc);
+  }
+
+  async isEmailVerified(email: string): Promise<boolean> {
+    const doc = await UserModel.findOne({ email }).select("emailVerified").exec();
+    return doc?.emailVerified === true;
+  }
+
+  // Password reset methods
+  async setResetPasswordToken(email: string, token: string, expiry: Date): Promise<void> {
+    await UserModel.findOneAndUpdate(
+      { email },
+      { $set: { resetPasswordToken: token, resetPasswordTokenExpiry: expiry } }
+    ).exec();
+  }
+
+  async getUserByResetToken(token: string): Promise<(User & { resetPasswordTokenExpiry?: Date }) | undefined> {
+    const doc = await UserModel.findOne({ resetPasswordToken: token }).exec();
+    if (!doc) return undefined;
+    const plain = doc.toJSON() as Record<string, unknown>;
+    // Include the expiry so the route can check it
+    return { ...plain, resetPasswordTokenExpiry: doc.resetPasswordTokenExpiry } as User & { resetPasswordTokenExpiry?: Date };
+  }
+
+  async clearResetPasswordToken(email: string): Promise<void> {
+    await UserModel.findOneAndUpdate(
+      { email },
+      { $set: { resetPasswordToken: null, resetPasswordTokenExpiry: null } }
+    ).exec();
   }
 
   async getAllUsers(): Promise<User[]> {

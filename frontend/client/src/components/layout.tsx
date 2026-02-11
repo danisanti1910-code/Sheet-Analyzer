@@ -4,17 +4,13 @@ import {
   FileSpreadsheet, 
   BarChart3, 
   LayoutDashboard, 
-  Home, 
   ChevronLeft,
   ChevronRight,
-  FolderOpen,
   Plus,
   Trash2,
   LogOut,
   User as UserIcon,
   LayoutGrid,
-  Eye,
-  EyeOff,
   Shield,
   CreditCard,
 } from "lucide-react";
@@ -30,18 +26,16 @@ import {
   DialogFooter
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { AuthDialog } from "@/components/auth-dialog";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
-  const { projects, activeProjectId, setActiveProjectId, createProject, deleteProject, deleteChart, user, login, logout, activeProject, currentPlan } = useSheet();
+  const { projects, activeProjectId, setActiveProjectId, createProject, deleteProject, deleteChart, user, logout, activeProject, currentPlan } = useSheet();
   const [collapsed, setCollapsed] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isLoginOpen, setIsLoginOpen] = useState(false);
-  const { toast } = useToast();
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authDefaultTab, setAuthDefaultTab] = useState<"login" | "register">("login");
 
   const isActive = (path: string) => location.startsWith(path);
 
@@ -50,55 +44,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
       createProject(newProjectName);
       setNewProjectName("");
       setIsDialogOpen(false);
-      // We will redirect to projects list or specific project logic
       setLocation("/projects");
     }
   };
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  const handleLoginSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await login({
-        firstName: "Usuario",
-        lastName: "Demo",
-        email: "usuario@demo.com",
-        useCase: "Personal"
-      });
-      toast({ title: "Bienvenido de nuevo" });
-      setIsLoginOpen(false);
-      setLocation("/projects");
-    } catch (err) {
-      toast({ title: err instanceof Error ? err.message : "Error", variant: "destructive" });
-    }
+  const handleAuthSuccess = () => {
+    setLocation("/projects");
   };
 
-  const handleRegisterSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const formData = new FormData(e.target as HTMLFormElement);
-    const password = formData.get('password') as string;
-    const confirmPassword = formData.get('confirmPassword') as string;
+  const openLogin = () => {
+    setAuthDefaultTab("login");
+    setIsAuthOpen(true);
+  };
 
-    if (password !== confirmPassword) {
-      toast({ title: "Las contraseñas no coinciden", variant: "destructive" });
-      return;
-    }
-
-    try {
-      await login({
-        firstName: formData.get('firstName') as string,
-        lastName: formData.get('lastName') as string,
-        email: formData.get('email') as string,
-        useCase: formData.get('useCase') as string
-      });
-      toast({ title: "Cuenta creada con éxito" });
-      setIsLoginOpen(false);
-      setLocation("/projects");
-    } catch (err) {
-      toast({ title: err instanceof Error ? err.message : "Error", variant: "destructive" });
-    }
+  const openRegister = () => {
+    setAuthDefaultTab("register");
+    setIsAuthOpen(true);
   };
 
   // If NO USER, show simpler layout without sidebar
@@ -113,124 +74,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <span className="font-bold text-lg tracking-tight">Sheet Analyzer</span>
           </Link>
           <div className="flex items-center gap-4">
-            <Dialog open={isLoginOpen} onOpenChange={setIsLoginOpen}>
-              <DialogTrigger asChild>
-                <Button variant="ghost">Iniciar Sesión</Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle>Ingresa a tu cuenta</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleLoginSubmit} className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Correo electrónico</Label>
-                    <Input id="email" type="email" placeholder="tu@email.com" defaultValue="usuario@demo.com" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Contraseña</Label>
-                    <div className="relative">
-                      <Input 
-                        id="password" 
-                        type={showPassword ? "text" : "password"} 
-                        placeholder="••••••••" 
-                        defaultValue="password" 
-                        required 
-                      />
-                      <Button 
-                        type="button" 
-                        variant="ghost" 
-                        size="sm" 
-                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                        onClick={() => setShowPassword(!showPassword)}
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
-                      </Button>
-                    </div>
-                  </div>
-                  <Button type="submit" className="w-full h-11">Ingresar</Button>
-                </form>
-              </DialogContent>
-            </Dialog>
-
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button className="rounded-full px-6">Empezar gratis</Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle className="text-2xl font-bold">Crea tu cuenta gratis</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleRegisterSubmit} className="space-y-4 py-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="reg-firstName">Nombre</Label>
-                      <Input id="reg-firstName" name="firstName" placeholder="Nombre" required />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="reg-lastName">Apellido</Label>
-                      <Input id="reg-lastName" name="lastName" placeholder="Apellido" required />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-email">Correo electrónico</Label>
-                    <Input id="reg-email" name="email" type="email" placeholder="tu@email.com" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-use-case">¿Para qué usarás el sistema?</Label>
-                    <Select name="useCase" required>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona una opción" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="business">Análisis de Negocios</SelectItem>
-                        <SelectItem value="education">Educación / Investigación</SelectItem>
-                        <SelectItem value="personal">Uso Personal</SelectItem>
-                        <SelectItem value="marketing">Marketing y Ventas</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2 relative">
-                      <Label htmlFor="reg-password">Contraseña</Label>
-                      <Input 
-                        id="reg-password" 
-                        name="password" 
-                        type={showPassword ? "text" : "password"} 
-                        required 
-                      />
-                      <Button 
-                        type="button" 
-                        variant="ghost" 
-                        size="sm" 
-                        className="absolute right-0 bottom-0 h-10 px-3" 
-                        onClick={() => setShowPassword(!showPassword)}
-                      >
-                        {showPassword ? "Ocultar" : "Ver"}
-                      </Button>
-                    </div>
-                    <div className="space-y-2 relative">
-                      <Label htmlFor="reg-confirmPassword">Confirmar</Label>
-                      <Input 
-                        id="reg-confirmPassword" 
-                        name="confirmPassword" 
-                        type={showConfirmPassword ? "text" : "password"} 
-                        required 
-                      />
-                      <Button 
-                        type="button" 
-                        variant="ghost" 
-                        size="sm" 
-                        className="absolute right-0 bottom-0 h-10 px-3" 
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      >
-                        {showConfirmPassword ? "Ocultar" : "Ver"}
-                      </Button>
-                    </div>
-                  </div>
-                  <Button type="submit" className="w-full h-11 mt-4">Comenzar ahora</Button>
-                </form>
-              </DialogContent>
-            </Dialog>
+            <Button variant="ghost" onClick={openLogin}>Iniciar Sesión</Button>
+            <Button className="rounded-full px-6" onClick={openRegister}>Empezar gratis</Button>
+            <AuthDialog
+              open={isAuthOpen}
+              onOpenChange={setIsAuthOpen}
+              defaultTab={authDefaultTab}
+              onSuccess={handleAuthSuccess}
+            />
           </div>
         </header>
         <main className="flex-1 overflow-y-auto overflow-x-hidden">

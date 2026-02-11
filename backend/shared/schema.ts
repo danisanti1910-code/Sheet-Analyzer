@@ -22,11 +22,34 @@ const userBaseSchema = z.object({
 });
 
 export const insertUserSchema = userBaseSchema;
+
+// Registration requires password
+export const registerUserSchema = userBaseSchema.extend({
+  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
+});
+
+// Login only requires email + password
+export const loginUserSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1, "La contraseña es requerida"),
+});
+// Forgot password
+export const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+// Reset password with token
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
+});
+
 export const userSchema = userBaseSchema.extend({
   id: z.string(),
   createdAt: z.coerce.date(),
   lastActiveAt: z.coerce.date(),
   isSuperAdmin: z.boolean().optional(),
+  emailVerified: z.boolean().optional(),
   /** Solo presente en BD; nunca se devuelve por la API. */
   passwordHash: z.string().optional(),
   // Stripe subscription fields

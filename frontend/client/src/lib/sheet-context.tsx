@@ -48,6 +48,7 @@ export interface User {
   email: string;
   useCase?: string;
   isSuperAdmin?: boolean;
+  emailVerified?: boolean;
   // Subscription fields
   subscriptionPlan?: "free" | "pro" | "business";
   subscriptionStatus?: "active" | "canceled" | "past_due" | "none";
@@ -82,6 +83,8 @@ interface SheetContextType {
   
   user: User | null;
   login: (userData: { firstName: string; lastName: string; email: string; useCase?: string }) => Promise<void>;
+  register: (userData: { firstName: string; lastName: string; email: string; useCase?: string; password: string }) => Promise<void>;
+  loginWithCredentials: (email: string, password: string) => Promise<void>;
   logout: () => void;
 
   activeProject: Project | null;
@@ -158,15 +161,7 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
     setUser(parsed);
     // Si el usuario tiene email pero le falta id o isSuperAdmin, refrescar desde la API
     if (parsed.email && (parsed.id === undefined || parsed.isSuperAdmin === undefined)) {
-      fetch(apiUrl('/api/auth/register'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: parsed.email,
-          firstName: parsed.firstName ?? '',
-          lastName: parsed.lastName ?? '',
-          useCase: parsed.useCase ?? '',
-        }),
+      fetch(apiUrl(`/api/auth/me?email=${encodeURIComponent(parsed.email)}`), {
         credentials: 'include',
       })
         .then((r) => r.ok ? r.json() : Promise.reject(new Error('Refresh failed')))
@@ -178,7 +173,21 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
+  // Legacy login (kept for backward compat; prefer register/loginWithCredentials)
   const login = async (userData: { firstName: string; lastName: string; email: string; useCase?: string }) => {
+    const response = await fetch(apiUrl(`/api/auth/me?email=${encodeURIComponent(userData.email)}`), {
+      credentials: 'include',
+    });
+    if (response.ok) {
+      const userFromApi = (await response.json()) as User;
+      setUser(userFromApi);
+      localStorage.setItem('sheet_analyzer_user', JSON.stringify(userFromApi));
+      return;
+    }
+    throw new Error('Usuario no encontrado. Por favor regístrate primero.');
+  };
+
+  const register = async (userData: { firstName: string; lastName: string; email: string; useCase?: string; password: string }) => {
     const response = await fetch(apiUrl('/api/auth/register'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -190,6 +199,23 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
       let err: { error?: string } = {};
       try { err = JSON.parse(bodyText); } catch { err = { error: bodyText }; }
       throw new Error(err?.error ?? 'Error al registrar');
+    }
+    // Don't auto-login — user must verify email first.
+    // The auth-dialog will show the "check your email" screen.
+  };
+
+  const loginWithCredentials = async (email: string, password: string) => {
+    const response = await fetch(apiUrl('/api/auth/login'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+      credentials: 'include',
+    });
+    const bodyText = await response.text();
+    if (!response.ok) {
+      let err: { error?: string } = {};
+      try { err = JSON.parse(bodyText); } catch { err = { error: bodyText }; }
+      throw new Error(err?.error ?? 'Error al iniciar sesión');
     }
     const userFromApi = JSON.parse(bodyText) as User;
     setUser(userFromApi);
@@ -483,6 +509,8 @@ export const SheetProvider = ({ children }: { children: ReactNode }) => {
       updateGlobalDashboardLayout,
       user,
       login,
+      register,
+      loginWithCredentials,
       logout,
       isLoading,
       currentPlan,

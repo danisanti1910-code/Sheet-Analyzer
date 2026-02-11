@@ -11,6 +11,8 @@ import GlobalDashboard from "@/pages/global-dashboard";
 import Projects from "@/pages/projects";
 import Admin from "@/pages/admin";
 import Pricing from "@/pages/pricing";
+import VerifyEmail from "@/pages/verify-email";
+import ResetPassword from "@/pages/reset-password";
 
 function Router() {
   const { user } = useSheet();
@@ -23,6 +25,8 @@ function Router() {
       <Route path="/projects" component={Projects} />
       <Route path="/pricing" component={Pricing} />
       <Route path="/admin" component={Admin} />
+      <Route path="/verify-email" component={VerifyEmail} />
+      <Route path="/reset-password" component={ResetPassword} />
 
       {/* New Routes */}
       <Route path="/projects/:projectId/charts/new" component={Analyze} />
