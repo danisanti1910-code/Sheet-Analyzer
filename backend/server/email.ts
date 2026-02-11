@@ -1,3 +1,4 @@
+import { Resend } from "resend";
 import nodemailer from "nodemailer";
 
 const APP_NAME = "Sheet Analyzer";
@@ -11,11 +12,13 @@ const SMTP_PASS = process.env.SMTP_PASS ?? "";
 const SMTP_FROM = process.env.SMTP_FROM ?? `"${APP_NAME}" <noreply@sheetanalyzer.com>`;
 const APP_URL = process.env.APP_URL ?? process.env.FRONTEND_URL ?? "http://localhost:5173";
 
-// Prefer Resend API if API key is provided (more reliable than SMTP)
-const useResendAPI = Boolean(RESEND_API_KEY && RESEND_API_KEY.startsWith("re_"));
-const smtpConfigured = Boolean(SMTP_HOST && SMTP_USER && SMTP_PASS);
+// Initialize Resend SDK if API key is provided
+const useResendSDK = Boolean(RESEND_API_KEY && RESEND_API_KEY.startsWith("re_"));
+const resend = useResendSDK ? new Resend(RESEND_API_KEY) : null;
 
-const transporter = smtpConfigured && !useResendAPI
+// Fallback to SMTP if Resend is not configured
+const smtpConfigured = Boolean(SMTP_HOST && SMTP_USER && SMTP_PASS && !useResendSDK);
+const transporter = smtpConfigured
   ? nodemailer.createTransport({
       host: SMTP_HOST,
       port: SMTP_PORT,
@@ -25,37 +28,46 @@ const transporter = smtpConfigured && !useResendAPI
   : null;
 
 /**
- * Sends an email using Resend API (preferred) or SMTP, or logs to console if not configured.
+ * Sends an email using Resend SDK (preferred), SMTP, or logs to console if not configured.
  */
 async function sendMail(to: string, subject: string, html: string): Promise<void> {
-  // Try Resend API first (most reliable)
-  if (useResendAPI) {
+  // Try Resend SDK first (most reliable)
+  if (resend) {
     try {
-      const response = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${RESEND_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: SMTP_FROM.replace(/"/g, ""), // Remove quotes for Resend API
-          to: [to],
-          subject,
-          html,
-        }),
+      // Extract email from SMTP_FROM format (handles "Name <email>" or just "email")
+      let fromEmail = SMTP_FROM.replace(/^"|"$/g, "").trim();
+      // If format is "Name <email@domain.com>", extract just the email
+      const emailMatch = fromEmail.match(/<([^>]+)>/);
+      if (emailMatch) {
+        fromEmail = emailMatch[1];
+      }
+      
+      console.log(`[Email] Attempting to send via Resend SDK:`);
+      console.log(`  From: ${fromEmail}`);
+      console.log(`  To: ${to}`);
+      console.log(`  Subject: ${subject}`);
+      
+      const { data, error } = await resend.emails.send({
+        from: fromEmail,
+        to,
+        subject,
+        html,
       });
 
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`Resend API error: ${response.status} - ${errorData}`);
+      if (error) {
+        throw new Error(`Resend error: ${JSON.stringify(error)}`);
       }
 
-      const data = await response.json();
-      console.log(`[Email] Sent via Resend API to ${to}: "${subject}" (ID: ${data.id})`);
+      console.log(`[Email] ✅ Sent via Resend SDK to ${to}: "${subject}" (ID: ${data?.id})`);
       return;
     } catch (error) {
-      console.error("[Email] Resend API failed, falling back to SMTP:", error);
-      // Fall through to SMTP or console logging
+      console.error("═══════════════════════════════════════════════════════");
+      console.error("[Email] ❌ Resend SDK failed:");
+      console.error(`  To: ${to}`);
+      console.error(`  Error:`, error);
+      console.error(`  Error details:`, error instanceof Error ? error.message : String(error));
+      console.error("═══════════════════════════════════════════════════════");
+      throw error; // Re-throw so caller knows it failed
     }
   }
 
@@ -63,19 +75,19 @@ async function sendMail(to: string, subject: string, html: string): Promise<void
   if (transporter) {
     try {
       await transporter.sendMail({ from: SMTP_FROM, to, subject, html });
-      console.log(`[Email] Sent via SMTP to ${to}: "${subject}"`);
+      console.log(`[Email] ✅ Sent via SMTP to ${to}: "${subject}"`);
     } catch (error) {
-      console.error(`[Email] SMTP failed for ${to}:`, error);
+      console.error(`[Email] ❌ SMTP failed for ${to}:`, error);
       throw error; // Re-throw so caller knows it failed
     }
   } else {
     // Dev mode: log to console
     console.log("──────────────────────────────────────────────");
-    console.log(`[Email DEV] Email service not configured – printing email.`);
+    console.log(`[Email DEV] ⚠️  Email service not configured – printing email.`);
     console.log(`  To:      ${to}`);
     console.log(`  Subject: ${subject}`);
     console.log(`  From:    ${SMTP_FROM}`);
-    console.log(`  Config:  Resend API=${useResendAPI}, SMTP=${smtpConfigured}`);
+    console.log(`  Config:  Resend SDK=${useResendSDK}, SMTP=${smtpConfigured}`);
     console.log(`  Body:\n${html.substring(0, 500)}...`);
     console.log("──────────────────────────────────────────────");
   }
