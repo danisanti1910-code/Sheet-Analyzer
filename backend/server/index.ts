@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "../shared/loadEnv";
 import { createApp, log } from "./app";
 import { createServer } from "http";
 
@@ -11,7 +11,7 @@ import { createServer } from "http";
     await setupVite(httpServer, app);
   }
 
-  const port = parseInt(process.env.PORT || "5000", 10);
+  const port = parseInt(process.env.PORT || "3000", 10);
   const listenOptions: { port: number; host?: string; reusePort?: boolean } = {
     port,
     host: "0.0.0.0",

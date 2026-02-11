@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "../shared/loadEnv";
 import { createApp } from "../server/app";
 
 type Req = import("express").Request & { body?: unknown; on?: (event: string, fn: (...args: unknown[]) => void) => void };

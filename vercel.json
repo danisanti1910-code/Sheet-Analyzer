@@ -4,10 +4,10 @@
   "installCommand": "npm install",
   "outputDirectory": "dist/public",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "/api" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "env": {
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "VITE_API_URL": "https://sheet-analyzer-qu7k.onrender.com"
   }
 }

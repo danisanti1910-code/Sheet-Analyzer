@@ -1,6 +1,7 @@
 node_modules
 dist
 api/index.js
+backend/api/index.js
 .DS_Store
 server/public
 vite.config.ts.*

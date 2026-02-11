@@ -4,8 +4,47 @@ import { connectDb } from "./db";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 
-/** Origin permitido para CORS (frontend en otro dominio). En Render: URL de tu front (Vercel/Netlify). */
-const CORS_ORIGIN = process.env.FRONTEND_URL || process.env.CORS_ORIGIN || "";
+/** Frontend conocido en Vercel (fallback si FRONTEND_URL no está definida). */
+const KNOWN_FRONTEND = "https://sheet-analyzer-gamma.vercel.app";
+
+/** Orígenes permitidos para CORS: FRONTEND_URL o CORS_ORIGIN (varios separados por coma) + frontend conocido + localhost en dev. */
+function getAllowedOrigins(): string[] {
+  const fromEnv = [process.env.FRONTEND_URL, process.env.CORS_ORIGIN]
+    .filter(Boolean)
+    .flatMap((v) => v!.split(","))
+    .map((o) => o.trim())
+    .filter(Boolean);
+  // Siempre incluir el frontend conocido en producción
+  const origins = [...new Set([...fromEnv, KNOWN_FRONTEND])];
+  // En desarrollo también localhost y 127.0.0.1
+  if (process.env.NODE_ENV !== "production") {
+    origins.push("http://localhost", "http://127.0.0.1");
+  }
+  return origins;
+}
+
+function getCorsAllowOrigin(req: express.Request): string {
+  const origin = req.headers.origin;
+  if (!origin) return "";
+  // Siempre aceptar localhost/127 en cualquier puerto (desarrollo local contra backend remoto)
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) return origin;
+  // Aceptar subdominios de vercel.app del mismo proyecto
+  if (/^https:\/\/sheet-analyzer[^.]*\.vercel\.app$/i.test(origin)) return origin;
+  // Origen exacto en la lista
+  const allowed = getAllowedOrigins();
+  if (allowed.includes(origin)) return origin;
+  return "";
+}
+
+function setCorsHeaders(req: express.Request, res: express.Response): void {
+  const allow = getCorsAllowOrigin(req);
+  if (allow) {
+    res.setHeader("Access-Control-Allow-Origin", allow);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-User-Email, X-Admin-Password");
+  }
+}
 
 declare module "http" {
   interface IncomingMessage {
@@ -34,19 +73,16 @@ export async function createApp(): Promise<Express> {
     const app = express();
     const httpServer = createServer(app);
 
-    // CORS: permitir front en otro dominio (FRONTEND_URL) y siempre localhost para desarrollo local contra backend en Render
+    // 1) OPTIONS (preflight) siempre 204 con CORS, antes de cualquier otro middleware
     app.use((req, res, next) => {
-      const origin = req.headers.origin;
-      const isLocalhost = origin && /^https?:\/\/localhost(:\d+)?$/i.test(origin);
-      const matchesConfigured = CORS_ORIGIN && origin === CORS_ORIGIN;
-      const allow = matchesConfigured ? origin! : (isLocalhost ? origin! : CORS_ORIGIN || "");
-      if (allow) {
-        res.setHeader("Access-Control-Allow-Origin", allow);
-        res.setHeader("Access-Control-Allow-Credentials", "true");
-        res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
-        res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-User-Email, X-Admin-Password");
-      }
-      if (req.method === "OPTIONS") return res.sendStatus(204);
+      if (req.method !== "OPTIONS") return next();
+      setCorsHeaders(req, res);
+      return res.sendStatus(204);
+    });
+
+    // 2) CORS en el resto de respuestas
+    app.use((req, res, next) => {
+      setCorsHeaders(req, res);
       next();
     });
 
@@ -105,13 +141,13 @@ export async function createApp(): Promise<Express> {
     }
 
     app.use((req, res, next) => {
-      if (!dbConnected && req.path.startsWith("/api")) {
-        return res.status(503).json({
-          error: "Database unavailable",
-          details: dbError ?? "Could not connect to MongoDB. Check MONGODB_URI in Vercel.",
-        });
-      }
-      next();
+      if (req.method === "OPTIONS" || !req.path.startsWith("/api")) return next();
+      if (dbConnected) return next();
+      setCorsHeaders(req, res);
+      return res.status(503).json({
+        error: "Database unavailable",
+        details: dbError ?? "MONGODB_URI or DATABASE_URL must be set. In Render: Environment → MONGODB_URI.",
+      });
     });
 
     await registerRoutes(httpServer, app);
